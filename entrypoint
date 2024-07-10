@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# 启动 logrotate 并定时运行
+while true; do
+    /usr/sbin/logrotate /etc/logrotate.d/mtimebasedscan4plex
+    sleep 10m
+done &
+
+# 如果宿主机的目录中没有配置文件，就从镜像中复制
+if [ ! -f /config/config.yaml ]; then
+    cp /template/config.yaml /config/config.yaml
+fi
+cp /template/config.yaml /config/config_template.yaml
+
+
+# 运行 Python 脚本
+touch /app/output.log && echo -e "\n日志记录开始："
+cd /app && python -u main.py
+
+# 创建计划任务
+echo -e "\n创建检测计划任务..."
+cd /app && python cron.py
+crond && tail -f /app/output.log

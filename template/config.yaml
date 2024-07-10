@@ -1,0 +1,10 @@
+plex:
+  host: http://127.0.0.1:32400
+  token: 你的plex token
+MONITOR_FOLDER:
+  /share/SSD1T/03cd2/115/电影/国产动漫电影: # 需要监测的本地目录，请保证和plex容器的挂载方式相同
+    blacklist: ["/share/SSD1T/03cd2/115/.Zprivate","/share/SSD1T/03cd2/115/tmp"]
+    listdir: false 
+  /share/SSD1T/03cd2/aliyun/电影/国产动漫电影:
+    blacklist: []
+    listdir: true # 阿里云盘通过cd2挂载到本地后，似乎新增文件不会导致目录的modified time变更，新增的目录可以。于是统计目录下的文件(夹)数量。
