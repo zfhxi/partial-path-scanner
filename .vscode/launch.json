@@ -12,7 +12,11 @@
             "console": "integratedTerminal",
             "env": {
                 "RELEASE": "False",
-            }
+                "POOL_SIZE": "4",
+            },
+            "args": [
+                "true"
+            ]
         }
     ]
 }

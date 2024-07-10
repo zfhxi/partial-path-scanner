@@ -5,6 +5,7 @@ services:
     network_mode: host
     environment:
       - CRONTAB="*/10 * * * *"
+      - POOL_SIZE=1 # 可设置为多线程
     restart: unless-stopped
     volumes:
       - ./config:/config

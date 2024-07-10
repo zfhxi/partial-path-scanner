@@ -1,3 +1,7 @@
+#
+# 第一个参数，bool类型，是否只初始化数据库，不扫描
+#
+import sys
 import os
 import yaml
 import time
@@ -7,6 +11,8 @@ from pathlib import Path
 from urllib.parse import quote_plus
 from keyvalue_sqlite import KeyValueSqlite
 import functools
+import psutil
+import multiprocessing
 
 
 def str2bool(v):
@@ -14,7 +20,7 @@ def str2bool(v):
         return v
     elif v in ["True", "true", "1"]:
         return True
-    elif v in ["False", "true", "0"]:
+    elif v in ["False", "false", "0"]:
         return False
     else:
         raise ValueError("Boolean value expected.")
@@ -25,13 +31,15 @@ def read_config(yaml_fn):
         return yaml.load(f, Loader=yaml.FullLoader)
 
 
-def get_mtime(path, listdir=False):
-    mtime = os.path.getmtime(path)
-    if listdir:
-        folder_len = len(os.listdir(path))
-        return f"{mtime}|{time.ctime(mtime)}|{folder_len}"
-    else:
-        return f"{mtime}|{time.ctime(mtime)}"
+def get_mtime(path):
+    try:
+        if os.path.exists(path):
+            mtime = os.path.getmtime(path)
+            # return f"{mtime}|{time.ctime(mtime)}
+            return f"{mtime}"
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return None
 
 
 def plex_find_libraries(path: Path, libraries):
@@ -57,69 +65,155 @@ def plex_find_libraries(path: Path, libraries):
                     if is_subpath(path, Path(location)):
                         return lib.key, str(path)
     except Exception as err:
-        print(f"查找媒体库出错：{str(err)}")
+        print(f"[ERROR] 查找媒体库出错：{str(err)}")
     return "", ""
 
 
 def plex_scan_specific_path(pms, plex_libraies, directory):
     lib_key, path = plex_find_libraries(Path(directory), plex_libraies)
-    print(f"刷新媒体库：{lib_key} - {path}")
-    pms.query(f"/library/sections/{lib_key}/refresh?path={quote_plus(str(Path(path).parent))}")
+    if bool(lib_key) and bool(path):
+        print(f"[INFO] 刷新媒体库：lib_key[{lib_key}] - path[{path}]")
+        pms.query(f"/library/sections/{lib_key}/refresh?path={quote_plus(str(Path(path).parent))}")
+    else:
+        print(f"[ERROR] 未定位到媒体库：lib_key[{lib_key}] - path[{path}]")
+
+
+def find_updated_folders(full_sub_d, db, get_mtime_func):
+    # 找出哪个子目录或者文件变更了，只遍历一级深度（不进行向下递归）
+    updated_folders = []
+    subs = os.listdir(full_sub_d)
+    for sub in subs:
+        full_sub_sub = os.path.join(full_sub_d, sub)
+        base_mtime = db.get(full_sub_sub)
+        new_mtime = get_mtime_func(full_sub_sub)
+        if base_mtime is None or base_mtime != new_mtime:
+            updated_folders.append(full_sub_sub)
+            db.set(full_sub_sub, new_mtime)
+    if len(updated_folders) == 0:
+        updated_folders.append(full_sub_d)
+    return updated_folders
+
+
+def get_other_pids_by_script_name(script_name):
+    pids = []
+    mypid = os.getpid()
+    for process in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            cmd_line = process.info['cmdline']
+            cmd_str = ' '.join(cmd_line) if cmd_line else ''
+            pid = process.info['pid']
+            if script_name in cmd_str and pid != mypid:
+                pids.append(pid)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    return pids
+
+
+def custom_only_scan_dir(path, exclude_dirs=[]):
+    if path in exclude_dirs:
+        return
+    if os.path.split(path)[1].startswith('.'):
+        return
+    for entry in os.scandir(path):
+        if entry.is_dir():
+            if entry.path in exclude_dirs or entry.name.startswith('.'):
+                continue
+            # if any(entry.path.startswith(os.path.join(dir_path, '')) for dir_path in exclude_dirs):
+            #     return
+            # if os.path.split(entry.path)[1].startswith('.'):
+            #     return
+            yield entry.path
+            yield from custom_only_scan_dir(entry.path, exclude_dirs)
+
+
+def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_libraies):
+    base_mtime = db.get(path)
+    new_mtime = get_mtime_func(path)
+    if base_mtime is None or base_mtime != new_mtime:
+        if not only_db_initializing:
+            # 找出产生更新的子目录来进行扫库
+            updated_folders = find_updated_folders(path, db, get_mtime_func=get_mtime_func)
+            for uf in updated_folders:
+                print(f"[INFO] 目录[{uf}]有变动!")
+                plex_scan_specific_path(pms, plex_libraies, Path(uf))
+            db.set(path, new_mtime)
+            # print(f"Update mtime to {new_mtime} for {full_subpath}")
+        elif base_mtime is None:
+            db.set(path, new_mtime)
+            print(f"[INFO] 目录[{path}]的mtime更新为{new_mtime}")
 
 
 def monitoring_and_scanning(db, config, pms):
-    monitored_folder_dict = config.get("MONITOR_FOLDER", {})
+    POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
+    # if POOL_SIZE > 1:
+    #     pool = multiprocessing.Pool(processes=POOL_SIZE)
+    #     print(f"启用多进程监测，进程数：{POOL_SIZE}")
+    # else:
+    #     pool = None
 
+    monitored_folder_dict = config.get("MONITOR_FOLDER", {})
     monitored_folders = list(monitored_folder_dict.keys())
     plex_libraies = pms.library.sections()
+    if len(sys.argv) < 2:
+        only_db_initializing = False
+    else:
+        only_db_initializing = str2bool(sys.argv[1])
+        if only_db_initializing:
+            print(f"[INFO] 只构建数据库！")
 
     for _folder in monitored_folders:
-        _blacklist = set(monitored_folder_dict[_folder].get("blacklist", []))
-        listdir_flag = str2bool(monitored_folder_dict[_folder].get("listdir", False))
-        get_mtime_bylistdir = functools.partial(get_mtime, listdir=listdir_flag)
+        _blacklist = list(map(lambda x: x.rstrip('/'), monitored_folder_dict[_folder].get("blacklist", [])))
+        worker_partial = functools.partial(
+            path_scan_workder,
+            db=db,
+            only_db_initializing=only_db_initializing,
+            get_mtime_func=get_mtime,
+            pms=pms,
+            plex_libraies=plex_libraies,
+        )
         # 监测目录自身
-        base_mtime = db.get(_folder)
-        new_mtime = get_mtime_bylistdir(_folder)
-        if base_mtime is None or base_mtime != new_mtime:
-            plex_scan_specific_path(pms, plex_libraies, Path(_folder))
-            db.set(_folder, new_mtime)
-            print(f"Update mtime to {new_mtime} for {_folder}.")
+        worker_partial(_folder)
         # 监测子目录、子文件
-        for root, dirs, files in os.walk(_folder, topdown=True):
-            _dirs = []
-            for sub_d in dirs:
-                if sub_d.startswith(".") or os.path.join(root, sub_d) in _blacklist:
-                    # 排除黑名单里的目录，和以.开头的隐藏目录
-                    continue
-                full_sub_d = os.path.join(root, sub_d)
-                base_mtime = db.get(full_sub_d)
-                new_mtime = get_mtime_bylistdir(full_sub_d)
-                if base_mtime is None or base_mtime != new_mtime:
-                    plex_scan_specific_path(pms, plex_libraies, Path(full_sub_d))
-                    db.set(full_sub_d, new_mtime)
-                    print(f"Update mtime to {new_mtime} for {full_sub_d}.")
-                    _dirs.append(sub_d)
-            # 跳过那些不满足条件的子目录的深度遍历
-            # 将dirs通过in-place方式修改，即后面只遍历dirs中的目录以及子目录、文件
-            # 参考https://stackoverflow.com/questions/51954665/exclude-specific-folders-and-subfolders-in-os-walk
-            dirs = _dirs
-    return 0
+        if POOL_SIZE > 1:
+            with multiprocessing.Pool(POOL_SIZE) as p:
+                p.map(worker_partial, custom_only_scan_dir(_folder, exclude_dirs=_blacklist))
+        else:
+            for _d in custom_only_scan_dir(_folder, exclude_dirs=_blacklist):
+                worker_partial(_d)
+    print(f"[INFO] 本次监测完成！")
 
 
 if __name__ == "__main__":
+    if bool(get_other_pids_by_script_name("main.py")):
+        # print("[ERROR] 已存在运行的监测任务！结束本次任务！")
+        if str2bool(os.getenv("RELEASE", True)):
+            sys.exit(1)
     print(f"\n###############################")
-    print(f"开始检测@{datetime.now().replace(microsecond=0)}...")
+    print(f"开始监测@{datetime.now().replace(microsecond=0)}...")
     print(f"###############################")
     CONFIG_FILE = os.getenv("CONFIG_FILE", "./config/config.yaml")
     DB_PATH = os.getenv("DB_FILE", "./config/dbkv.sqlite")
 
-    try:
+    if str2bool(os.getenv("RELEASE", True)):
+        try:
+            config = read_config(CONFIG_FILE)
+            db = KeyValueSqlite(DB_PATH, "mtimebasedscan4plex")
+            pms = PlexServer(config["plex"]["host"], config["plex"]["token"])
+            monitoring_and_scanning(db, config, pms)
+        except Exception as e:
+            print("[ERROR] 监测or刷新失败！")
+            print(e)
+        finally:
+            pass
+    else:
         config = read_config(CONFIG_FILE)
         db = KeyValueSqlite(DB_PATH, "mtimebasedscan4plex")
         pms = PlexServer(config["plex"]["host"], config["plex"]["token"])
-        monitoring_and_scanning(db, config, pms)
-    except Exception as e:
-        print("检测or刷新失败！")
-        print(e)
+        i = 1
+        while True:
+            print(f"第{i}次监测...")
+            monitoring_and_scanning(db, config, pms)
+            time.sleep(2)
+            i += 1
 
 ## 感谢https://github.com/jxxghp/MoviePilot/blob/19165eff759f14e9947e772c574f9775b388df0e/app/modules/plex/plex.py#L355

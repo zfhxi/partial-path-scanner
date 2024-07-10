@@ -20,6 +20,7 @@ services:
     network_mode: host
     environment:
       - CRONTAB="*/10 * * * *"
+      - POOL_SIZE=1 # 可设置为多进程
     restart: unless-stopped
     volumes:
       - ./config:/config
@@ -29,5 +30,5 @@ services:
       - /share/HDD2:/share/HDD2 # 本地盘2
 ```
 * 根据情况修改`- CRONTAB="*/10 * * * *"`，通过crontab表达式来定期执行监测文件。
-* 部署后，修改`./config/config.yaml`中的plex信息和需要监控的目录。
+* 部署后，修改`./config/config.yaml`中的plex信息和需要监控的目录后，再重启。
 
