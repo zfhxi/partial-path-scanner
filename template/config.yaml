@@ -3,6 +3,6 @@ plex:
   token: 你的plex token
 MONITOR_FOLDER:
   /share/SSD1T/03cd2/115/电影/国产动漫电影: # 需要监测的本地目录，请保证和plex容器的挂载方式相同
-    blacklist: ["/share/SSD1T/03cd2/115/.Zprivate","/share/SSD1T/03cd2/115/tmp"]
+    blacklist: ["/share/SSD1T/03cd2/115/.Zprivate","/share/SSD1T/03cd2/115/tmp"] # 需要忽略的目录，需要保证其是监测目录开头
   /share/SSD1T/03cd2/aliyun/电影/国产动漫电影:
-    blacklist: []
+    blacklist: [] # 没有需要忽略的目录

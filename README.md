@@ -9,9 +9,17 @@
 
 * 定期监测本地目录的修改时间，并触发plex的局部扫描
 
-## 部署
 
-docker-compose部署：
+## 部署
+**个人环境简要说明**
+
+* QNAP x86_64系统
+* docker部署plex media server
+* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/share/SSD1T/03cd2/{aliyun,115}`
+
+
+**docker-compose部署**
+
 ```yaml
 services:
   mtimebasedscan4plex:
@@ -32,3 +40,8 @@ services:
 * 根据情况修改`- CRONTAB="*/10 * * * *"`，通过crontab表达式来定期执行监测文件。
 * 部署后，修改`./config/config.yaml`中的plex信息和需要监控的目录后，再重启。
 
+## TODO
+
+- [] 是否考虑更高效的键值对数据库（目前方案为[zackees/keyvalue_sqlite](https://github.com/zackees/keyvalue_sqlite)）；
+- [] 找更多bug并修复；
+- [] 为emby media server实现该项目的功能?
