@@ -105,7 +105,7 @@ def plex_scan_specific_path(pms, plex_libraies, directory):
     lib_key, path = plex_find_libraries(Path(directory), plex_libraies)
     if bool(lib_key) and bool(path):
         print(f"[INFO] 刷新媒体库：lib_key[{lib_key}] - path[{path}]")
-        pms.query(f"/library/sections/{lib_key}/refresh?path={quote_plus(str(Path(path).parent))}")
+        pms.query(f"/library/sections/{lib_key}/refresh?path={quote_plus(Path(path).as_posix())}")
     else:
         print(f"[ERROR] 未定位到媒体库：lib_key[{lib_key}] - path[{path}]")
 
