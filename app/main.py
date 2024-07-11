@@ -179,6 +179,8 @@ def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_
 
 def monitoring_and_scanning(db, config, pms):
     POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
+    if POOL_SIZE > 1:
+        print(f"[INFO] 启用多进程监测，进程数：{POOL_SIZE}")
     monitored_folder_dict = config.get("MONITOR_FOLDER", {})
     monitored_folders = list(monitored_folder_dict.keys())
     plex_libraies = pms.library.sections()
@@ -206,13 +208,12 @@ def monitoring_and_scanning(db, config, pms):
         worker_partial(_folder)
         # 监测子目录、子文件
         if POOL_SIZE > 1:
-            print(f"[INFO] 启用多进程监测，进程数：{POOL_SIZE}")
             with multiprocessing.Pool(POOL_SIZE) as p:
                 p.map(worker_partial, custom_only_scan_dir(_folder, exclude_dirs=_blacklist))
         else:
             for _d in custom_only_scan_dir(_folder, exclude_dirs=_blacklist):
                 worker_partial(_d)
-    print(f"[INFO] 本次监测完成！")
+    # print(f"[INFO] 本次监测完成！")
 
 
 if __name__ == "__main__":
@@ -220,9 +221,10 @@ if __name__ == "__main__":
         # print("[ERROR] 已存在运行的监测任务！结束本次任务！")
         if str2bool(os.getenv("RELEASE", True)):
             sys.exit(1)
-    print(f"\n###############################")
-    print(f"开始监测@{datetime.now().replace(microsecond=0)}...")
-    print(f"###############################")
+    t_start = datetime.now()
+    print(f"\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print(f"开始监测@{t_start.replace(microsecond=0)}...")
+    # print(f"###############################")
     CONFIG_FILE = os.getenv("CONFIG_FILE", "./config/config.yaml")
     DB_PATH = os.getenv("DB_FILE", "./config/dbkv.sqlite")
 
@@ -247,5 +249,15 @@ if __name__ == "__main__":
             monitoring_and_scanning(db, config, pms)
             time.sleep(2)
             i += 1
+    t_end = datetime.now()
+    total_seconds = (t_end - t_start).total_seconds()
+    if total_seconds < 60:
+        print(f"[INFO] 耗时{total_seconds:.2f} seconds!")
+    else:
+        total_minutes = total_seconds / 60
+        print(f"[INFO] 耗时{total_minutes:.2f} minutes!")
+    # print(f"###############################")
+    print(f"结束监测@{t_end.replace(microsecond=0)}   ")
+    print(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
 ## 感谢https://github.com/jxxghp/MoviePilot/blob/19165eff759f14e9947e772c574f9775b388df0e/app/modules/plex/plex.py#L355
