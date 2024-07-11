@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "env": {
                 "RELEASE": "False",
-                "POOL_SIZE": "4",
+                "POOL_SIZE": "1",
             },
             "args": [
                 "true"

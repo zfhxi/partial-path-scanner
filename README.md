@@ -9,6 +9,10 @@
 
 * 定期监测本地目录的修改时间，并触发plex的局部扫描
 
+> 注：
+> - 使用115网盘时，/A/B/目录下新增资源C.mkv，会使B的mtime产生变化，A的mtime不变，比较好处理。
+> - 使用阿里云盘时，某一目录/A/B/新增了资源C.mkv，不影响B的mtime，该如何高效判定呢？
+
 
 ## 部署
 **个人环境简要说明**
@@ -45,3 +49,4 @@ services:
 - [] 是否考虑更高效的键值对数据库（目前方案为[zackees/keyvalue_sqlite](https://github.com/zackees/keyvalue_sqlite)）；
 - [] 找更多bug并修复；
 - [] 为emby media server实现该项目的功能?
+

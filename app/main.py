@@ -42,6 +42,38 @@ def get_mtime(path):
         return None
 
 
+def my_list_folders(path):
+    if os.path.isfile(path):
+        # raise ValueError(f"{path} is a file!")
+        return []
+    else:
+        folders = [entry.path for entry in os.scandir(path) if entry.is_dir()]
+        return folders
+
+
+def my_list_files(path):
+    if os.path.isfile(path):
+        return []
+    else:
+        files = [entry.path for entry in os.scandir(path) if entry.is_file()]
+        return files
+
+
+def custom_get_mtime(path):
+    """
+    对于/A/B/C目录
+    先更新A目录的mtime为文件B1、B2、B3中最新的mtime
+    """
+    try:
+        if os.path.exists(path):
+            mtimes = [os.path.getmtime(x) for x in my_list_files(path)]
+            mtime = max(mtimes) if bool(mtimes) else os.path.getmtime(path)
+            return f"{mtime}"
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return None
+
+
 def plex_find_libraries(path: Path, libraries):
     """
     判断这个path属于哪个媒体库
@@ -128,7 +160,7 @@ def custom_only_scan_dir(path, exclude_dirs=[]):
             yield from custom_only_scan_dir(entry.path, exclude_dirs)
 
 
-def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_libraies):
+def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_libraies, overwrite_db):
     base_mtime = db.get(path)
     new_mtime = get_mtime_func(path)
     if base_mtime is None or base_mtime != new_mtime:
@@ -140,19 +172,13 @@ def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_
                 plex_scan_specific_path(pms, plex_libraies, Path(uf))
             db.set(path, new_mtime)
             # print(f"Update mtime to {new_mtime} for {full_subpath}")
-        elif base_mtime is None:
+        elif base_mtime is None or overwrite_db:
             db.set(path, new_mtime)
             print(f"[INFO] 目录[{path}]的mtime更新为{new_mtime}")
 
 
 def monitoring_and_scanning(db, config, pms):
     POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
-    # if POOL_SIZE > 1:
-    #     pool = multiprocessing.Pool(processes=POOL_SIZE)
-    #     print(f"启用多进程监测，进程数：{POOL_SIZE}")
-    # else:
-    #     pool = None
-
     monitored_folder_dict = config.get("MONITOR_FOLDER", {})
     monitored_folders = list(monitored_folder_dict.keys())
     plex_libraies = pms.library.sections()
@@ -165,18 +191,22 @@ def monitoring_and_scanning(db, config, pms):
 
     for _folder in monitored_folders:
         _blacklist = list(map(lambda x: x.rstrip('/'), monitored_folder_dict[_folder].get("blacklist", [])))
+        custom_mtime_flag = monitored_folder_dict[_folder].get("custom_mtime", False)
+        overwrite_db_flag = monitored_folder_dict[_folder].get("overwrite_db", False)
         worker_partial = functools.partial(
             path_scan_workder,
             db=db,
             only_db_initializing=only_db_initializing,
-            get_mtime_func=get_mtime,
+            get_mtime_func=custom_get_mtime if custom_mtime_flag else get_mtime,
             pms=pms,
             plex_libraies=plex_libraies,
+            overwrite_db=overwrite_db_flag,
         )
         # 监测目录自身
         worker_partial(_folder)
         # 监测子目录、子文件
         if POOL_SIZE > 1:
+            print(f"[INFO] 启用多进程监测，进程数：{POOL_SIZE}")
             with multiprocessing.Pool(POOL_SIZE) as p:
                 p.map(worker_partial, custom_only_scan_dir(_folder, exclude_dirs=_blacklist))
         else:
