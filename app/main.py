@@ -89,8 +89,10 @@ def find_updated_folders(full_sub_d, db, get_mtime_func):
         if base_mtime is None or base_mtime != new_mtime:
             updated_folders.append(full_sub_sub)
             db.set(full_sub_sub, new_mtime)
-    if len(updated_folders) == 0:
-        updated_folders.append(full_sub_d)
+    # 当文件夹A找不到被更新的子目录B1或子文件B2（有可能删除了B3，导致了A的mtime产生了变化），添加A作为更新目录
+    # 但这样做可能扫描很多内容，比如删除了`/115/电影/天空之城`这个文件夹，会导致刷新`/115/电影`整个目录
+    # if len(updated_folders) == 0:
+    #    updated_folders.append(full_sub_d)
     return updated_folders
 
 
