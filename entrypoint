@@ -13,11 +13,16 @@ fi
 cp /template/config.yaml /config/config_template.yaml
 
 
-# 运行 Python 脚本
-touch /app/output.log && echo -e "\n日志记录开始："
-cd /app && python -u main.py true
+launch(){
+    # 运行 Python 脚本
+    touch /app/output.log && echo -e "\n日志记录开始："
+    cd /app && python -u main.py true
 
-# 创建计划任务
-echo -e "\n创建监测计划任务..."
-cd /app && python cron.py
-crond && tail -f /app/output.log
+    # 创建计划任务
+    echo -e "\n创建监测计划任务..."
+    cd /app && python -u cron.py
+    crond
+}
+
+launch >> /app/output.log 2>&1 &
+tail -f /app/output.log

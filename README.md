@@ -46,7 +46,6 @@ services:
 
 ## TODO
 
-- [] 是否考虑更高效的键值对数据库（目前方案为[zackees/keyvalue_sqlite](https://github.com/zackees/keyvalue_sqlite)）；
-- [] 找更多bug并修复；
-- [] 为emby media server实现该项目的功能?
-
+- [ ] 是否考虑更高效的键值对数据库（目前方案为[zackees/keyvalue_sqlite](https://github.com/zackees/keyvalue_sqlite)）；
+- [ ] 为emby media server实现该项目的功能?
+- [ ] 找更多bug并修复；

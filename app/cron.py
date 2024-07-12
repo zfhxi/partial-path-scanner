@@ -17,7 +17,7 @@ if __name__ == "__main__":
         print(f"crontab: {_CRONTAB}")
 
     with CronTab(user=getuser()) as cron:
-        command_str = "cd /app && python main.py >> /app/output.log 2>&1 &"
+        command_str = "cd /app && python -u main.py >> /app/output.log 2>&1"
         remove_number = cron.remove_all(command=command_str)
         if remove_number > 0:
             print(f"WARN: {remove_number} jobs has been removed!")
