@@ -5,7 +5,6 @@ FROM python:3.12-alpine
 ENV LANG="C.UTF-8" \
     TZ="Asia/Shanghai" \
     CRONTAB="* * * * *" \
-    RELEASE=True \
     CONFIG_FILE="/config/config.yaml" \
     DB_FILE="/config/dbkv.sqlite"
 

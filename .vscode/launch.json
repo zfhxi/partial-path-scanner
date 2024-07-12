@@ -11,7 +11,6 @@
             "program": "app/main.py",
             "console": "integratedTerminal",
             "env": {
-                "RELEASE": "False",
                 "POOL_SIZE": "1",
             },
             "args": [

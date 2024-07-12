@@ -12,7 +12,7 @@ from urllib.parse import quote_plus
 from keyvalue_sqlite import KeyValueSqlite
 import functools
 import psutil
-import multiprocessing
+import multiprocessing as mp
 
 
 def str2bool(v):
@@ -154,10 +154,6 @@ def custom_only_scan_dir(path, exclude_dirs=[]):
         if entry.is_dir():
             if entry.path in exclude_dirs or entry.name.startswith('.'):
                 continue
-            # if any(entry.path.startswith(os.path.join(dir_path, '')) for dir_path in exclude_dirs):
-            #     return
-            # if os.path.split(entry.path)[1].startswith('.'):
-            #     return
             yield entry.path
             yield from custom_only_scan_dir(entry.path, exclude_dirs)
 
@@ -183,6 +179,9 @@ def monitoring_and_scanning(db, config, pms):
     POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
     if POOL_SIZE > 1:
         print(f"[INFO] 启用多进程监测，进程数：{POOL_SIZE}")
+        pool = mp.Pool(POOL_SIZE)
+    else:
+        pool = None
     monitored_folder_dict = config.get("MONITOR_FOLDER", {})
     monitored_folders = list(monitored_folder_dict.keys())
     plex_libraies = pms.library.sections()
@@ -210,48 +209,43 @@ def monitoring_and_scanning(db, config, pms):
         # 监测目录自身
         worker_partial(_folder)
         # 监测子目录、子文件
-        if POOL_SIZE > 1:
-            with multiprocessing.Pool(POOL_SIZE) as p:
-                p.map(worker_partial, custom_only_scan_dir(_folder, exclude_dirs=_blacklist))
+        t_s = datetime.now()
+        dirs_iter = list( custom_only_scan_dir(_folder, exclude_dirs=_blacklist))  # 先直接遍历一遍，方便多进程操作各个子目录 # fmt:skip
+        # dirs_iter = custom_only_scan_dir(_folder, exclude_dirs=_blacklist)  # 在通过函数操作时再遍历，对于单线程可能更加高效
+        print(f"time cost: {(datetime.now()-t_s).total_seconds()} s")
+        if pool:
+            pool.map_async(worker_partial, dirs_iter)
+
         else:
-            for _d in custom_only_scan_dir(_folder, exclude_dirs=_blacklist):
+            for _d in dirs_iter:
                 worker_partial(_d)
+    if pool:
+        pool.close()
+        pool.join()
+        print(f"[INFO] 多进程监测完成！")
     # print(f"[INFO] 本次监测完成！")
 
 
 if __name__ == "__main__":
     if bool(get_other_pids_by_script_name("main.py")):
         # print("[ERROR] 已存在运行的监测任务！结束本次任务！")
-        if str2bool(os.getenv("RELEASE", True)):
-            sys.exit(1)
+        sys.exit(1)
     t_start = datetime.now()
     print(f"\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     print(f"开始监测@{t_start.replace(microsecond=0)}...")
     # print(f"###############################")
     CONFIG_FILE = os.getenv("CONFIG_FILE", "./config/config.yaml")
     DB_PATH = os.getenv("DB_FILE", "./config/dbkv.sqlite")
-
-    if str2bool(os.getenv("RELEASE", True)):
-        try:
-            config = read_config(CONFIG_FILE)
-            db = KeyValueSqlite(DB_PATH, "mtimebasedscan4plex")
-            pms = PlexServer(config["plex"]["host"], config["plex"]["token"])
-            monitoring_and_scanning(db, config, pms)
-        except Exception as e:
-            print("[ERROR] 监测or刷新失败！")
-            print(e)
-        finally:
-            pass
-    else:
+    try:
         config = read_config(CONFIG_FILE)
         db = KeyValueSqlite(DB_PATH, "mtimebasedscan4plex")
         pms = PlexServer(config["plex"]["host"], config["plex"]["token"])
-        i = 1
-        while True:
-            print(f"第{i}次监测...")
-            monitoring_and_scanning(db, config, pms)
-            time.sleep(2)
-            i += 1
+        monitoring_and_scanning(db, config, pms)
+    except Exception as e:
+        print("[ERROR] 监测or刷新失败！")
+        print(e)
+    finally:
+        pass
     t_end = datetime.now()
     total_seconds = (t_end - t_start).total_seconds()
     if total_seconds < 60:
