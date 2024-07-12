@@ -51,7 +51,7 @@ def parallel_walker_mt(path, exclude_dirs=[], level=1):
     _dirs = []
     sep = os.path.sep
     num_sep = path.rstrip(sep).count(sep)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.getenv("MAX_WORKERS", 4)) as executor:
         todo = []
         for sub_path in os_walk_bylevel_only_dir(path, exclude_dirs=exclude_dirs, level=level):
             if sub_path in exclude_dirs or os.path.basename(sub_path).startswith('.'):

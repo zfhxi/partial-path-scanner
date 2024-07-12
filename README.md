@@ -32,7 +32,6 @@ services:
     network_mode: host
     environment:
       - CRONTAB="*/10 * * * *"
-      - POOL_SIZE=1 # 可设置为多进程
     restart: unless-stopped
     volumes:
       - ./config:/config

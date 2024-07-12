@@ -12,10 +12,10 @@ from urllib.parse import quote_plus
 from keyvalue_sqlite import KeyValueSqlite
 import functools
 import psutil
-import multiprocessing as mp
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from scandir import parallel_walker_mt
+
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -164,12 +164,6 @@ def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_
 
 
 def monitoring_and_scanning(db, config, pms):
-    POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
-    if POOL_SIZE > 1:
-        print(f"[INFO] 启用多进程监测，进程数：{POOL_SIZE}")
-        pool = mp.Pool(POOL_SIZE)
-    else:
-        pool = None
     monitored_folder_dict = config.get("MONITOR_FOLDER", {})
     monitored_folders = list(monitored_folder_dict.keys())
     plex_libraies = pms.library.sections()
@@ -182,6 +176,7 @@ def monitoring_and_scanning(db, config, pms):
 
     for _folder in monitored_folders:
         _blacklist = list(map(lambda x: x.rstrip('/'), monitored_folder_dict[_folder].get("blacklist", [])))
+        _splitlevel = int(monitored_folder_dict[_folder].get("split_level", 2))
         custom_mtime_flag = monitored_folder_dict[_folder].get("custom_mtime", False)
         overwrite_db_flag = monitored_folder_dict[_folder].get("overwrite_db", False)
         worker_partial = functools.partial(
@@ -197,17 +192,10 @@ def monitoring_and_scanning(db, config, pms):
         # 监测目录自身
         worker_partial(_folder)
         # 监测子目录、子文件
-        dirs_iter = parallel_walker_mt(_folder, exclude_dirs=_blacklist, level=3)
-        if pool:
-            pool.map_async(worker_partial, dirs_iter)
-
-        else:
-            for _d in dirs_iter:
-                worker_partial(_d)
-    if pool:
-        pool.close()
-        pool.join()
-        print(f"[INFO] 多进程监测完成！")
+        dirs_iter = parallel_walker_mt(_folder, exclude_dirs=_blacklist, level=_splitlevel)
+        for _d in dirs_iter:
+            worker_partial(_d)
+    # pass
 
 
 if __name__ == "__main__":
