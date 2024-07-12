@@ -11,3 +11,8 @@ demo
 ### VisualStudioCode Patch ###
 # Ignore all local history of files
 **/.history
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+

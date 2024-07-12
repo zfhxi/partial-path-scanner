@@ -14,6 +14,8 @@ import functools
 import psutil
 import multiprocessing as mp
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from scandir import parallel_walker_mt
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -145,19 +147,6 @@ def get_other_pids_by_script_name(script_name):
     return pids
 
 
-def custom_only_scan_dir(path, exclude_dirs=[]):
-    if path in exclude_dirs:
-        return
-    if os.path.split(path)[1].startswith('.'):
-        return
-    for entry in os.scandir(path):
-        if entry.is_dir():
-            if entry.path in exclude_dirs or entry.name.startswith('.'):
-                continue
-            yield entry.path
-            yield from custom_only_scan_dir(entry.path, exclude_dirs)
-
-
 def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_libraies, overwrite_db, blacklist):
     base_mtime = db.get(path)
     new_mtime = get_mtime_func(path)
@@ -169,7 +158,6 @@ def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_
                 print(f"[INFO] 目录[{uf}]有变动!")
                 plex_scan_specific_path(pms, plex_libraies, Path(uf))
             db.set(path, new_mtime)
-            # print(f"Update mtime to {new_mtime} for {full_subpath}")
         elif base_mtime is None or overwrite_db:
             db.set(path, new_mtime)
             print(f"[INFO] 目录[{path}]的mtime更新为{new_mtime}")
@@ -209,10 +197,7 @@ def monitoring_and_scanning(db, config, pms):
         # 监测目录自身
         worker_partial(_folder)
         # 监测子目录、子文件
-        t_s = datetime.now()
-        dirs_iter = list( custom_only_scan_dir(_folder, exclude_dirs=_blacklist))  # 先直接遍历一遍，方便多进程操作各个子目录 # fmt:skip
-        # dirs_iter = custom_only_scan_dir(_folder, exclude_dirs=_blacklist)  # 在通过函数操作时再遍历，对于单线程可能更加高效
-        print(f"time cost: {(datetime.now()-t_s).total_seconds()} s")
+        dirs_iter = parallel_walker_mt(_folder, exclude_dirs=_blacklist, level=3)
         if pool:
             pool.map_async(worker_partial, dirs_iter)
 
@@ -223,7 +208,6 @@ def monitoring_and_scanning(db, config, pms):
         pool.close()
         pool.join()
         print(f"[INFO] 多进程监测完成！")
-    # print(f"[INFO] 本次监测完成！")
 
 
 if __name__ == "__main__":
