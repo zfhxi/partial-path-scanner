@@ -110,12 +110,14 @@ def plex_scan_specific_path(pms, plex_libraies, directory):
         print(f"[ERROR] 未定位到媒体库：lib_key[{lib_key}] - path[{path}]")
 
 
-def find_updated_folders(full_sub_d, db, get_mtime_func):
+def find_updated_folders(full_sub_d, db, get_mtime_func, blacklist):
     # 找出哪个子目录或者文件变更了，只遍历一级深度（不进行向下递归）
     updated_folders = []
     subs = os.listdir(full_sub_d)
     for sub in subs:
         full_sub_sub = os.path.join(full_sub_d, sub)
+        if full_sub_sub in blacklist or sub.startswith("."):
+            continue
         base_mtime = db.get(full_sub_sub)
         new_mtime = get_mtime_func(full_sub_sub)
         if base_mtime is None or base_mtime != new_mtime:
@@ -160,13 +162,13 @@ def custom_only_scan_dir(path, exclude_dirs=[]):
             yield from custom_only_scan_dir(entry.path, exclude_dirs)
 
 
-def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_libraies, overwrite_db):
+def path_scan_workder(path, db, only_db_initializing, get_mtime_func, pms, plex_libraies, overwrite_db, blacklist):
     base_mtime = db.get(path)
     new_mtime = get_mtime_func(path)
     if base_mtime is None or base_mtime != new_mtime:
         if not only_db_initializing:
             # 找出产生更新的子目录来进行扫库
-            updated_folders = find_updated_folders(path, db, get_mtime_func=get_mtime_func)
+            updated_folders = find_updated_folders(path, db, get_mtime_func=get_mtime_func, blacklist=blacklist)
             for uf in updated_folders:
                 print(f"[INFO] 目录[{uf}]有变动!")
                 plex_scan_specific_path(pms, plex_libraies, Path(uf))
@@ -203,6 +205,7 @@ def monitoring_and_scanning(db, config, pms):
             pms=pms,
             plex_libraies=plex_libraies,
             overwrite_db=overwrite_db_flag,
+            blacklist=_blacklist,
         )
         # 监测目录自身
         worker_partial(_folder)
