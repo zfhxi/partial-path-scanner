@@ -52,6 +52,9 @@ class PlexScanner:
                 if hasattr(lib, "locations") and lib.locations:
                     for location in lib.locations:
                         if is_subpath(path, Path(location)):
+                            if path.is_file():
+                                # plex只支持刷新目录
+                                path = path.parent
                             return lib.key, str(path)
         except Exception as err:
             print(f"[ERROR-plex] 查找媒体库出错：{str(err)}")
