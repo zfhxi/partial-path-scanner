@@ -70,10 +70,8 @@ def launch(config):
     scanners = []
     if 'plex' in servers:
         scanners.append(PlexScanner(config))
-    elif 'emby' in servers:
+    if 'emby' in servers:
         scanners.append(EmbyScanner(config))
-    else:
-        pass
     # 包装回调函数
     worker_callback = functools.partial(scanning_callback, scanners=scanners)
     event_handler = FileChangeHandler(worker_callback)
