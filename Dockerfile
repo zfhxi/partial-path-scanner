@@ -4,7 +4,7 @@ FROM python:3.12-alpine
 # 环境变量
 ENV LANG="C.UTF-8" \
     TZ="Asia/Shanghai" \
-    CRONTAB="* * * * *" \
+    CRONTAB="*/10 * * * *" \
     CONFIG_FILE="/config/config.yaml" \
     DB_FILE="/config/dbkv.sqlite"
 
@@ -18,11 +18,11 @@ RUN apk add g++ logrotate \
     && mkdir /app
 
 COPY template/logrotate.conf /etc/logrotate.d/mtimebasedscan4plex
-
 COPY template/config.yaml /template/config.yaml
 COPY entrypoint /entrypoint
 COPY app/*.py /app/
 WORKDIR /app
-RUN chmod +x /entrypoint
+RUN chmod +x /entrypoint \
+    && chmod 644 /etc/logrotate.d/mtimebasedscan4plex
 
 ENTRYPOINT ["/bin/sh","/entrypoint"]
