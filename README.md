@@ -31,9 +31,9 @@
 
 ```yaml
 services:
-  partialpathscanner:
+  partial-path-scanner:
     image: zfhxi/partialpathscanner:latest
-    container_name: partialpathscanner
+    container_name: partial-path-scanner
     network_mode: host
     restart: unless-stopped
     volumes:
@@ -43,7 +43,7 @@ services:
       - /share/HDD1:/share/HDD1 # 本地盘1
       - /share/HDD2:/share/HDD2 # 本地盘2
 ```
-* 部署后，修改`./config/config.yaml`中的plex信息和需要监控的目录后，再重启。
+* 部署后，修改`./config/config.yaml`中的plex/emby信息和需要监控的目录后，再重启。
 
 ## TODO
 

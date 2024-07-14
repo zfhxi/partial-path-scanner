@@ -5,8 +5,15 @@ plex:
 emby:
   host: http://127.0.0.1:8096
   api_key: 你的emby api_key 
+  path_mapping: # 假设你的plex和emby在不同服务器上，那么可能需要做路径映射
+    enable: true
+    rules:
+      - from: /share/SSD1T/03cd2/115
+        to: /mnt/user/CloudDrive/115
+      - from: /share/SSD1T/03cd2/aliyun
+        to: /mnt/user/CloudDrive/aliyundrive
 MONITOR_FOLDER:
-  - /mnt/user/CloudDrive/115/电视
-  - /mnt/user/CloudDrive/115/电影
-  - /mnt/user/CloudDrive/aliyundrive/电视
-  - /mnt/user/CloudDrive/aliyundrive/电影意
+  - /share/SSD1T/03cd2/115/电影
+  - /share/SSD1T/03cd2/115/电视
+  - /share/SSD1T/03cd2/aliyun/电影
+  - /share/SSD1T/03cd2/aliyun/电视

@@ -1,7 +1,7 @@
 services:
-  partialpathscanner:
+  partial-path-scanner:
     image: zfhxi/partialpathscanner:latest
-    container_name: partialpathscanner
+    container_name: partial-path-scanner
     network_mode: host
     restart: unless-stopped
     volumes:
