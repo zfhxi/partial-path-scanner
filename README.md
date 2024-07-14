@@ -9,10 +9,6 @@
 
 * 定期监测本地目录的修改时间，并触发plex/emby的局部扫描
 
-> 注：
-> - 使用115网盘时，/A/B/目录下新增资源C.mkv，会使B的mtime产生变化，A的mtime不变，比较好处理。
-> - 使用阿里云盘时，某一目录/A/B/新增了资源C.mkv，不影响B的mtime，该如何高效判定呢？
-
 
 ## 部署
 **个人环境简要说明**
@@ -37,8 +33,6 @@ services:
     image: zfhxi/mtimebasedscan4plex:latest
     container_name: mtimebasedscan4plex
     network_mode: host
-    environment:
-      - CRONTAB="*/10 * * * *"
     restart: unless-stopped
     volumes:
       - ./config:/config
@@ -47,12 +41,11 @@ services:
       - /share/HDD1:/share/HDD1 # 本地盘1
       - /share/HDD2:/share/HDD2 # 本地盘2
 ```
-* 根据情况修改`- CRONTAB="*/10 * * * *"`，通过crontab表达式来定期执行监测文件。
 * 部署后，修改`./config/config.yaml`中的plex信息和需要监控的目录后，再重启。
 
 ## TODO
 
-- [ ] 是否考虑更高效的键值对数据库（目前方案为[zackees/keyvalue_sqlite](https://github.com/zackees/keyvalue_sqlite)）；
 - [x] 为emby media server实现该项目的功能?
 - [ ] 找更多bug并修复；
 - [ ] 为jellyfin media server实现该项目的功能?
+- [ ] 调查使用watchdog轮询目录变更，与整库刷新对文件系统的访问压力是否等价？（目前使用该项目可能只是个定心丸）

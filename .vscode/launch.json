@@ -6,17 +6,11 @@
     "configurations": [
 
         {
-            "name": "Python Debugger: Current File",
+            "name": "Python Debugger:  main",
             "type": "debugpy",
             "request": "launch",
             "program": "app/main.py",
             "console": "integratedTerminal",
-            "env": {
-                "POOL_SIZE": "1",
-            },
-            "args": [
-                "true"
-            ]
         },
         {
             "name": "Python Debugger: demo",

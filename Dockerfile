@@ -4,14 +4,10 @@ FROM python:3.12-alpine
 # 环境变量
 ENV LANG="C.UTF-8" \
     TZ="Asia/Shanghai" \
-    CRONTAB="*/10 * * * *" \
-    CONFIG_FILE="/config/config.yaml" \
-    DB_FILE="/config/dbkv.sqlite"
+    CONFIG_FILE="/config/config.yaml"
 
 COPY ./requirements.txt requirements.txt
-# RUN pip config set global.index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple \
-RUN apk add g++ logrotate \
-    && apk add gcc python3-dev musl-dev linux-headers \
+RUN apk add logrotate \
     && pip install --upgrade pip\
     && pip install --no-cache-dir -r requirements.txt\
     && mkdir /config \

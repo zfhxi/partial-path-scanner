@@ -3,11 +3,7 @@ services:
     image: zfhxi/mtimebasedscan4plex:latest
     container_name: mtimebasedscan4plex
     network_mode: host
-    environment:
-      - CRONTAB="*/10 * * * *"
     restart: unless-stopped
     volumes:
       - ./config:/config
-      - /share/SSD1T/03cd2:/share/SSD1T/03cd2:rslave # cd2挂载到本地
-      - /share/HDD1:/share/HDD1 # 本地盘1
-      - /share/HDD2:/share/HDD2 # 本地盘2
+      - /mnt/user/CloudDrive:/mnt/user/CloudDrive:rslave # cd2挂载到本地
