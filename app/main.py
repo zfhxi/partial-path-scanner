@@ -95,8 +95,7 @@ def launch(db, config):
 if __name__ == "__main__":
     if bool(get_pids_by_name("main.py")):
         # print("[ERROR] 已存在运行的监测任务！结束本次任务！")
-        # sys.exit(1)
-        pass
+        sys.exit(1)
     t_start = datetime.now()
     print(f"\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     print(colored(f"开始监测@{t_start.replace(microsecond=0)}...", "green"))
