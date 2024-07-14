@@ -2,7 +2,7 @@
 
 # 启动 logrotate 并定时运行
 while true; do
-    /usr/sbin/logrotate /etc/logrotate.d/mtimebasedscan4plex
+    /usr/sbin/logrotate /etc/logrotate.d/partialpathscanner
     sleep 10m
 done &
 

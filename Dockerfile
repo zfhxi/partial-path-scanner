@@ -13,12 +13,12 @@ RUN apk add logrotate \
     && mkdir /config \
     && mkdir /app
 
-COPY template/logrotate.conf /etc/logrotate.d/mtimebasedscan4plex
+COPY template/logrotate.conf /etc/logrotate.d/partialpathscanner
 COPY template/config.yaml /template/config.yaml
 COPY entrypoint /entrypoint
 COPY app/*.py /app/
 WORKDIR /app
 RUN chmod +x /entrypoint \
-    && chmod 644 /etc/logrotate.d/mtimebasedscan4plex
+    && chmod 644 /etc/logrotate.d/partialpathscanner
 
 ENTRYPOINT ["/bin/sh","/entrypoint"]

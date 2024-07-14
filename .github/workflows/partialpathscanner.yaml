@@ -1,4 +1,4 @@
-name: mtimebasedscan4plex Builder
+name: partialpathscanner Builder
 on:
   workflow_dispatch:
   push:
@@ -27,6 +27,6 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
-      - name: mtimebasedscan4plex
+      - name: partialpathscanner
         run: |
-          docker buildx build --platform linux/amd64 -t $DOCKERHUB_USERNAME/mtimebasedscan4plex:latest -t $DOCKERHUB_USERNAME/mtimebasedscan4plex:${GITHUB_SHA::7} -f Dockerfile . --push
+          docker buildx build --platform linux/amd64 -t $DOCKERHUB_USERNAME/partialpathscanner:latest -t $DOCKERHUB_USERNAME/partialpathscanner:${GITHUB_SHA::7} -f Dockerfile . --push

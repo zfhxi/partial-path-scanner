@@ -1,4 +1,6 @@
-# mtimebasedscan4plex
+# partial-path-scanner
+
+利用watchdog监控目录变化，然后进行plex/emby media server的局部扫描。
 
 ## 注意
 
@@ -29,9 +31,9 @@
 
 ```yaml
 services:
-  mtimebasedscan4plex:
-    image: zfhxi/mtimebasedscan4plex:latest
-    container_name: mtimebasedscan4plex
+  partialpathscanner:
+    image: zfhxi/partialpathscanner:latest
+    container_name: partialpathscanner
     network_mode: host
     restart: unless-stopped
     volumes:

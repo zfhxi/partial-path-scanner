@@ -1,7 +1,7 @@
 services:
-  mtimebasedscan4plex:
-    image: zfhxi/mtimebasedscan4plex:latest
-    container_name: mtimebasedscan4plex
+  partialpathscanner:
+    image: zfhxi/partialpathscanner:latest
+    container_name: partialpathscanner
     network_mode: host
     restart: unless-stopped
     volumes:
