@@ -7,7 +7,7 @@
 
 ## 使用场景
 
-* 定期监测本地目录的修改时间，并触发plex的局部扫描
+* 定期监测本地目录的修改时间，并触发plex/emby的局部扫描
 
 > 注：
 > - 使用115网盘时，/A/B/目录下新增资源C.mkv，会使B的mtime产生变化，A的mtime不变，比较好处理。
@@ -17,9 +17,16 @@
 ## 部署
 **个人环境简要说明**
 
+**测试环境1**
+
 * QNAP x86_64系统
 * docker部署plex media server
 * clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/share/SSD1T/03cd2/{aliyun,115}`
+
+**测试环境2**
+* Unraid 7.0.0-beta.1
+* app中心部署官方的EmbyServer
+* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/mnt/user/CloudDrive/{aliyun,115}`
 
 
 **docker-compose部署**
@@ -46,5 +53,6 @@ services:
 ## TODO
 
 - [ ] 是否考虑更高效的键值对数据库（目前方案为[zackees/keyvalue_sqlite](https://github.com/zackees/keyvalue_sqlite)）；
-- [ ] 为emby media server实现该项目的功能?
+- [x] 为emby media server实现该项目的功能?
 - [ ] 找更多bug并修复；
+- [ ] 为jellyfin media server实现该项目的功能?

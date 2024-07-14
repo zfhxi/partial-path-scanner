@@ -2,8 +2,67 @@ import os
 import multiprocessing as mp
 from threading import Thread
 import concurrent.futures
+from termcolor import colored
 
 
+def list_folders(path):
+    if os.path.isfile(path):
+        # raise ValueError(f"{path} is a file!")
+        return []
+    else:
+        folders = [entry.path for entry in os.scandir(path) if entry.is_dir()]
+        return folders
+
+
+def list_files(path):
+    if os.path.isfile(path):
+        return []
+    else:
+        files = [entry.path for entry in os.scandir(path) if entry.is_file()]
+        return files
+
+
+def get_mtime(path):
+    """获取路径的mtime
+    Args:
+        path (string): 路径
+
+    Returns:
+        string: 字符串型时间戳
+    """
+    try:
+        if os.path.exists(path):
+            mtime = os.path.getmtime(path)
+            # return f"{mtime}|{time.ctime(mtime)}
+            return f"{mtime}"
+    except Exception as e:
+        print(colored(f"[ERROR] {e}", "red"))
+        return None
+
+
+def custom_get_mtime(path):
+    """获取路径的mtime自定义版，适用于阿里云挂载到本地时，mtime不准确的情况
+    对于/A/B/C目录
+    先更新A目录的mtime为文件B1、B2、B3中最新的mtime
+
+    Args:
+        path (string): 路径
+
+    Returns:
+        string: 字符串型时间戳
+    """
+
+    try:
+        if os.path.exists(path):
+            mtimes = [os.path.getmtime(x) for x in list_files(path)]
+            mtime = max(mtimes) if bool(mtimes) else os.path.getmtime(path)
+            return f"{mtime}"
+    except Exception as e:
+        print(colored(f"[ERROR] {e}", "red"))
+        return None
+
+
+# >>>>>>>>>>>>>>>>>>> 以下是探索递归遍历目录的代码 >>>>>>>>>>>>>>>>>>>>
 def custom_only_scan_dir(path, exclude_dirs=[]):
     if path in exclude_dirs:
         return
@@ -96,3 +155,6 @@ def parallel_walker_mp(path, exclude_dirs=[], level=1, poolsize=1):
     for res in results:
         _dirs.extend(res.get())
     return _dirs
+
+
+# <<<<<<<<<<<<<<<<<<< 以上是探索递归遍历目录的代码 <<<<<<<<<<<<<<<<<<<<

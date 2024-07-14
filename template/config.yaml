@@ -1,17 +1,15 @@
+servers: ['plex','emby'] # 可只保留一个['plex']或者['emby']
 plex:
   host: http://127.0.0.1:32400
   token: 你的plex token
 emby:
   host: http://127.0.0.1:8096
   api_key: 你的emby api_key 
-jellyfin: 
-  host: http://127.0.0.1:8096
-  api_key: 你的jellyfin api_key
 MONITOR_FOLDER:
-  # /share/SSD1T/03cd2/115/电影/国产动漫电影: # 需要监测的本地目录，请保证和plex容器的挂载方式相同
+  # /share/SSD1T/03cd2/115/电影/国产动漫电影: # 需要监测的本地目录，请保证和plex/emby容器的挂载方式相同
     # blacklist: ["/share/SSD1T/03cd2/115/.Zprivate","/share/SSD1T/03cd2/115/tmp"] # 需要忽略的目录，需要保证其是监测目录开头
   /share/SSD1T/03cd2/aliyun/电影/国产动漫电影:
-    blacklist: [] # 没有需要忽略的目录
-    custom_mtime: true # 阿里云盘中，A目录下新增了S01E01.mp4后，不会影响A目录的mtime。那么采用自定义的mtime计算方式（A文件夹的mtime改为A目录下最新文件的mtime）
-    overwrite_db: true # 构建数据库时，对数据库中已存在的mtime采用覆盖模式（防止数据库中的mtime太旧，导致进行监测时刷新大量路径）
+    blacklist: [] # 需要忽略的目录
+    custom_mtime: true # 阿里云盘中，A目录下新增了S01E01.mp4后，不会影响A目录的mtime。那么采用自定义的mtime计算方式（A文件夹的mtime改为A目录下最新文件的mtime），一般只有阿里云盘挂载的路径才需要设置为true
+    overwrite_db: false # 构建数据库时，对数据库中已存在的mtime采用覆盖模式（防止数据库中的mtime太旧，导致进行监测时刷新大量路径），一般保持false
     split_level: 3 # 后面可能舍弃该参数，不用在意
