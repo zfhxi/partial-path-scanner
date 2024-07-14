@@ -36,6 +36,8 @@ services:
     container_name: partial-path-scanner
     network_mode: host
     restart: unless-stopped
+    environment:
+      - POOL_SIZE=4 # 多进程监测的进程数
     volumes:
       - ./config:/config
       # 以下目录挂载的写法，要和plex容器一致！（如果你的plex不是套件的话）

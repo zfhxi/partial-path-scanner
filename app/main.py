@@ -5,15 +5,14 @@ import sys
 import os
 import yaml
 import functools
+import time
 from termcolor import colored
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from scanner import PlexScanner, EmbyScanner
-
+import multiprocessing as mp
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler
 
-import time
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from scanner import PlexScanner, EmbyScanner
 
 
 class FileChangeHandler(FileSystemEventHandler):
@@ -65,6 +64,21 @@ def scanning_callback(path, scanners):
         scanner.scan_directory(path)
 
 
+def monitor_folder(idx, folder, event_handler):
+    print(colored(f"[INFO] 目录{idx}[{folder}]监测启动...", "cyan"))
+    observer = PollingObserver()
+    observer.schedule(event_handler, folder, recursive=True)
+    observer.start()
+    print(colored(f"[INFO] 目录{idx}[{folder}]监测启动完成！", "green"))
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+        print(colored(f"[ERROR] 目录{idx}[{folder}]监测取消！", "red"))
+    observer.join()
+
+
 def launch(config):
     servers = config.get("servers")
     scanners = []
@@ -75,25 +89,17 @@ def launch(config):
     # 包装回调函数
     worker_callback = functools.partial(scanning_callback, scanners=scanners)
     event_handler = FileChangeHandler(worker_callback)
-    observers = []
+    monitor_folder_wrapper = functools.partial(monitor_folder, event_handler=event_handler)
+    # 构建进程池
+    POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
+    print(colored(f"启动进程池，大小：{POOL_SIZE}", "cyan"))
+    pool = mp.Pool(POOL_SIZE)
 
     monitored_folders = config.get("MONITOR_FOLDER", [])
-    print(colored(f"监测目录启动...", "green"))
-    for _folder in monitored_folders:
-        print(colored(f"  - {_folder}", "cyan"))
-        observer = PollingObserver()
-        observer.schedule(event_handler, _folder, recursive=True)
-        observer.start()
-        observers.append(observer)
-    try:
-        while True:
-            time.sleep(60)
-    except Exception as e:
-        print(colored(f"监测出错：{e}", "red"))
-        for observer in observers:
-            observer.stop()
-    for observer in observers:
-        observer.join()
+    for idx, _folder in enumerate(monitored_folders):
+        pool.apply_async(monitor_folder_wrapper, args=(idx, _folder))
+    pool.close()
+    pool.join()
 
 
 if __name__ == "__main__":

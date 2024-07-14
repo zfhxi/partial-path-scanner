@@ -4,6 +4,8 @@ services:
     container_name: partial-path-scanner
     network_mode: host
     restart: unless-stopped
+    environment:
+      - POOL_SIZE=4
     volumes:
       - ./config:/config
       - /mnt/user/CloudDrive:/mnt/user/CloudDrive:rslave # cd2挂载到本地
