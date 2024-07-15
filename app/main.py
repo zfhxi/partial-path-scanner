@@ -4,24 +4,87 @@ import yaml
 import functools
 import time
 import multiprocessing as mp
-from threading import Thread
+
+# from threading import Thread
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import PatternMatchingEventHandler
+import queue
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from scanner import PlexScanner, EmbyScanner, getLogger
+from scanner import PlexScanner, EmbyScanner, getLogger, ScanType
 
 logger = getLogger(__name__)
+
+
+class UniqueQueue:
+    def __init__(self):
+        self.queue = queue.Queue()
+        self.added_items = set()
+
+    def put(self, item):
+        if item not in self.added_items:
+            self.queue.put(item)
+            self.added_items.add(item)
+
+    def get(self):
+        item = self.queue.get()
+        self.added_items.remove(item)
+        return item
+
+    def empty(self):
+        return self.queue.empty()
+
+
+class PathQueueThread(threading.Thread):
+    """use a thread to process file path in a queue, avoid blocking the main thread
+    refer to: https://github.com/vwvm/store/blob/37da0846f1a5a3712055d818e513d9d1e2b67379/python/backupCopy%E5%A4%87%E4%BB%BD/Watch.py#L168
+    """
+
+    def __init__(self, scanners, file_queue: queue.Queue, path_queue: UniqueQueue, event: threading.Event):
+        super().__init__()
+        self.scanners = scanners
+        self.file_queue = file_queue
+        self.path_queue = path_queue
+        self.event = event
+        worker_num = int(os.getenv("NUM_WORKERS", 1))
+        logger.info(f"Launching a thread with a size {worker_num} to process file path in a queue!")
+        self.pool_executor = ThreadPoolExecutor(max_workers=worker_num)
+
+    def run(self) -> None:
+        while not self.event.is_set():
+            for scanner in self.scanners:
+                if scanner.scan_type == ScanType.FILE_BASED:
+                    path = self.file_queue.get()
+                elif scanner.scan_type == ScanType.PATH_BASED:
+                    path = self.path_queue.get()
+                else:
+                    raise ValueError(f"Invalid scan type: {scanner.scan_type}")
+                self.pool_executor.submit(self.process, scanner, path, self.event)
+
+    def process(self, scanner, path, event):
+        """
+        while not event.is_set():
+            try:
+                scanner.scan_directory(path)
+                break
+            except Exception as e:
+                logger.error(f"Failed to scan {path}!\n{e}")
+                time.sleep(1)
+        """
+        scanner.scan_directory(path)
 
 
 class FileChangeHandler(PatternMatchingEventHandler):
     def __init__(
         self,
-        folders,
+        monitored_folders,
         scanners,
+        stop_event: threading.Event,
         patterns=None,
         ignore_patterns=None,
-        ignore_directories=None,
+        ignore_directories=False,
         case_sensitive=False,
     ):
         super().__init__(
@@ -30,17 +93,63 @@ class FileChangeHandler(PatternMatchingEventHandler):
             ignore_directories=ignore_directories,
             case_sensitive=case_sensitive,
         )
-        self.folders = folders
-        self.scanners = scanners
+        self.monitored_folders = monitored_folders
+        self.stop_event = stop_event
+        # create a thread pool to process the file path
+        self.file_queue = queue.Queue()
+        self.path_queue = UniqueQueue()  # avoid duplicate path
+        self.path_queue_thread = PathQueueThread(
+            scanners=scanners,
+            file_queue=self.file_queue,
+            path_queue=self.path_queue,
+            event=stop_event,
+        )
+        # setting the thread as daemon and start it
+        self.path_queue_thread.daemon = True
+        self.path_queue_thread.start()
 
-    def process(self, path):
-        for scanner in self.scanners:
-            scanner.scan_directory(path)
+    def should_ignore(self, event):
+        if '/.' in event.src_path or event.src_path in self.monitored_folders:
+            return True
+        else:
+            return False
 
-    def on_any_event(self, event):
-        logger.warning(f"[{event.event_type.upper()}][{event.src_path}]")
-        thread = Thread(target=self.process, args=(event.src_path,))
-        thread.start()
+    def put_queue(self, path):
+        self.file_queue.put(path)
+        if os.path.isfile(path):
+            self.path_queue.put(os.path.dirname(path))
+        else:
+            self.path_queue.put(path)
+
+    def on_created(self, event):
+        if self.should_ignore(event):
+            return
+        path = event.src_path
+        logger.warning(f"[{event.event_type.upper()}][{path}]")
+        self.put_queue(path)
+
+    def on_deleted(self, event):
+        if self.should_ignore(event):
+            return
+        path = event.src_path
+        logger.warning(f"[{event.event_type.upper()}][{path}]")
+        self.put_queue(path)
+
+    def on_modified(self, event):
+        if True:
+            return
+        path = event.src_path
+        logger.warning(f"[{event.event_type.upper()}][{path}]")
+        self.path_queue.put(path)
+
+    def on_moved(self, event):
+        if self.should_ignore(event):
+            return
+        src_path = event.src_path
+        dest_path = event.dest_path
+        logger.warning(f"[{event.event_type.upper()}][from {src_path} to {dest_path}]")
+        self.put_queue(src_path)
+        self.put_queue(dest_path)
 
 
 def read_config(yaml_fn):
@@ -52,27 +161,67 @@ def read_config(yaml_fn):
         return config
 
 
-def monitoring_folder_func(idx, folder, event_handler):
+def monitoring_folder_func(idx, folder, monitored_folders, scanners):
     """create a observer to monitor the folder
 
     Args:
         idx (int): folder number
         folder (string): the absolute folder path
-        event_handler : the event handler
     """
+    stop_event = threading.Event()
+    event_handler = FileChangeHandler(
+        monitored_folders=monitored_folders,
+        scanners=scanners,
+        stop_event=stop_event,
+        ignore_patterns=None,
+        ignore_directories=False,
+    )
     logger.info(f"Folder{idx}[{folder}] monitor is launching...")
     observer = PollingObserver()
     observer.schedule(event_handler, folder, recursive=True)
     observer.start()
-    logger.info(f"Folder{idx}[{folder}] monitor is now active!")
+    observer.is_alive()
+    logger.warning(f"Folder{idx}[{folder}] monitor is now active!")
+    stopped = False
     try:
         while True:
+            """
+            if not os.path.exists(folder):
+                if not stopped:
+                    observer.stop()
+                    stopped = True
+                    logger.warning(f"Observer for folder{idx}[{folder}] is stopped!")
+            else:
+                if stopped:
+                    observer = PollingObserver()
+                    observer.schedule(event_handler, folder, recursive=True)
+                    observer.start()
+                    stopped = False
+                    logger.warning(f"Observer for folder{idx}[{folder}] is re-activated!")
+            """
+            if not observer.is_alive():
+                stop_event.set()
+                observer.stop()
+                stopped = True
+                logger.warning(f"Observer for folder{idx}[{folder}] is stopped!")
+            else:
+                if stopped:
+                    observer = PollingObserver()
+                    observer.schedule(event_handler, folder, recursive=True)
+                    stop_event.clear()
+                    observer.start()
+                    stopped = False
+                    logger.warning(f"Observer for folder{idx}[{folder}] is re-activated!")
+
             # set a big sleep time to avoid high CPU usage
-            time.sleep(4294967)
+            # time.sleep(4294967)
+            time.sleep(600)
     except KeyboardInterrupt:
         observer.stop()
         logger.info(f"Folder{idx}[{folder}] monitor is deactived!")
     observer.join()
+    # close the thread pool
+    event_handler.filepath_queue_thread.pool_executor.shutdown()
 
 
 def launch(config):
@@ -84,15 +233,11 @@ def launch(config):
     if 'emby' in servers:
         scanners.append(EmbyScanner(config))
 
-    event_handler = FileChangeHandler(
-        folders=monitored_folders,
-        scanners=scanners,
-        ignore_patterns=[".*"],
-        ignore_directories=True,
+    monitoring_folder_wrapper = functools.partial(
+        monitoring_folder_func, monitored_folders=monitored_folders, scanners=scanners
     )
-    monitoring_folder_wrapper = functools.partial(monitoring_folder_func, event_handler=event_handler)
     # build a process pool to monitor multiple folders
-    POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
+    POOL_SIZE = min(len(monitored_folders), os.cpu_count())
     logger.info(f"Launching a pool with a size {POOL_SIZE}!")
     pool = mp.Pool(POOL_SIZE)
 

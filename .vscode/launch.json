@@ -11,6 +11,9 @@
             "request": "launch",
             "program": "app/main.py",
             "console": "integratedTerminal",
+            "env": {
+                "NUM_WORKERS": "4",
+            }
         },
         {
             "name": "Python Debugger: demo",

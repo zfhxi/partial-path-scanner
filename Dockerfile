@@ -1,4 +1,3 @@
-# FROM python:3.12-slim
 FROM python:3.12-alpine
 
 # 环境变量
@@ -7,7 +6,7 @@ ENV LANG="C.UTF-8" \
     CONFIG_FILE="/config/config.yaml"
 
 COPY ./requirements.txt requirements.txt
-RUN apk add logrotate \
+RUN apk add logrotate htop \
     && pip install --upgrade pip\
     && pip install --no-cache-dir -r requirements.txt\
     && mkdir /config \

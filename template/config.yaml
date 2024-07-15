@@ -5,15 +5,15 @@ plex:
 emby:
   host: http://127.0.0.1:8096
   api_key: emby api_key 
-  path_mapping: # Assuming your plex and emby are on different servers, then you may need to do path mapping
+  path_mapping:
+    # If your Plex and Emby are on separate servers,
+    # you may need to map the paths accordingly.
     enable: true
     rules:
-      - from: /share/SSD1T/03cd2/115
-        to: /mnt/user/CloudDrive/115
       - from: /share/SSD1T/03cd2/aliyun
         to: /mnt/user/CloudDrive/aliyundrive
 MONITOR_FOLDER:
-  - /share/SSD1T/03cd2/115/Movies
-  - /share/SSD1T/03cd2/115/TVs
+  # NOTE! The docker container will create a process for each
+  # folder to monitor, so please do not add too many folders.
   - /share/SSD1T/03cd2/aliyun/Movies
   - /share/SSD1T/03cd2/aliyun/TVs

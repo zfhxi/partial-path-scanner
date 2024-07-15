@@ -5,6 +5,7 @@ import requests
 from datetime import datetime
 from requests import RequestException
 import coloredlogs, logging
+from enum import Enum, unique
 
 
 # refer to:
@@ -67,6 +68,12 @@ def get_path_mapping_rules(server_config):
         return []
 
 
+@unique
+class ScanType(Enum):
+    FILE_BASED = 1
+    PATH_BASED = 2
+
+
 # refer to:
 # https://github.com/jxxghp/MoviePilot/blob/19165eff759f14e9947e772c574f9775b388df0e/app/modules/plex/plex.py#L355
 class PlexScanner:
@@ -78,6 +85,7 @@ class PlexScanner:
         except Exception as e:
             logger.error(f"[PLEX] Failed to connect to the Plex Media Server!\n{e}")
         self.path_mapping_rules = get_path_mapping_rules(self.server_cnf)
+        self.scan_type = ScanType.PATH_BASED
 
     def plex_find_libraries(self, path: Path, libraries):
         """
@@ -100,7 +108,7 @@ class PlexScanner:
         return "", "", ""
 
     # def plex_scan_specific_path(self, plex_libraies, directory):
-    def scan_directory(self, directory):
+    def scan_directory(self, directory, **kwargs):
         for rule in self.path_mapping_rules:
             if directory.startswith(rule[0]):
                 directory = directory.replace(rule[0], rule[1], 1)
@@ -122,8 +130,9 @@ class EmbyScanner:
         self.host = self.server_cnf['host']
         self.api_key = self.server_cnf['api_key']
         self.path_mapping_rules = get_path_mapping_rules(self.server_cnf)
+        self.scan_type = ScanType.FILE_BASED
 
-    def scan_directory(self, directory):
+    def scan_directory(self, directory, **kwargs):
         for rule in self.path_mapping_rules:
             if directory.startswith(rule[0]):
                 directory = directory.replace(rule[0], rule[1], 1)
