@@ -22,26 +22,43 @@ class FileChangeHandler(FileSystemEventHandler):
         FileSystemEventHandler (_type_): _description_
     """
 
-    def __init__(self, func) -> None:
+    def __init__(self, func, folders) -> None:
         super().__init__()
         self.func = func
+        self.folders = folders
+
+    def should_ignore(self, path):
+        root_folder = ""
+        for p in self.folders:
+            if path.startswith(p):
+                root_folder = p
+                break
+
+        if bool(root_folder) and not os.path.exists(root_folder):
+            # 最顶级的监测目录发生变动，但是不存在了（可能挂载点被卸载了、或被删除），忽略处理
+            print(f"忽略处理：{path}，原因：监控目录{root_folder}似乎被卸载/删除！")
+            return True
 
     def on_modified(self, event):
-        print(f'文件被修改: {event.src_path}')
-        self.func(event.src_path)
+        if not self.should_ignore(event.src_path):
+            print(f'文件被修改: {event.src_path}')
+            self.func(event.src_path)
 
     def on_created(self, event):
-        print(f'新文件/目录创建: {event.src_path}')
-        self.func(event.src_path)
+        if not self.should_ignore(event.src_path):
+            print(f'新文件/目录创建: {event.src_path}')
+            self.func(event.src_path)
 
     def on_deleted(self, event):
-        # TODO: 调用plexapi
-        print(f'文件/目录被删除: {event.src_path}')
-        self.func(event.src_path)
+        if not self.should_ignore(event.src_path):
+            # TODO: 调用plexapi
+            print(f'文件/目录被删除: {event.src_path}')
+            self.func(event.src_path)
 
     def on_moved(self, event):
-        '''似乎文件的移动也被认为是从一个文件夹删除到另一个文件夹创建'''
-        print(f"文件/目录被移动: 从{event.src_path}到{event.dest_path}")
+        if not self.should_ignore(event.src_path):
+            '''似乎文件的移动也被认为是从一个文件夹删除到另一个文件夹创建'''
+            print(f"文件/目录被移动: 从{event.src_path}到{event.dest_path}")
 
 
 def read_config(yaml_fn):
@@ -64,7 +81,7 @@ def scanning_callback(path, scanners):
         scanner.scan_directory(path)
 
 
-def monitor_folder(idx, folder, event_handler):
+def monitoring_folder_func(idx, folder, event_handler):
     print(colored(f"[INFO] 目录{idx}[{folder}]监测启动...", "cyan"))
     observer = PollingObserver()
     observer.schedule(event_handler, folder, recursive=True)
@@ -81,6 +98,7 @@ def monitor_folder(idx, folder, event_handler):
 
 def launch(config):
     servers = config.get("servers")
+    monitored_folders = config.get("MONITOR_FOLDER", [])
     scanners = []
     if 'plex' in servers:
         scanners.append(PlexScanner(config))
@@ -88,16 +106,15 @@ def launch(config):
         scanners.append(EmbyScanner(config))
     # 包装回调函数
     worker_callback = functools.partial(scanning_callback, scanners=scanners)
-    event_handler = FileChangeHandler(worker_callback)
-    monitor_folder_wrapper = functools.partial(monitor_folder, event_handler=event_handler)
+    event_handler = FileChangeHandler(worker_callback, monitored_folders)
+    monitoring_folder_wrapper = functools.partial(monitoring_folder_func, event_handler=event_handler)
     # 构建进程池
     POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
     print(colored(f"启动进程池，大小：{POOL_SIZE}", "cyan"))
     pool = mp.Pool(POOL_SIZE)
 
-    monitored_folders = config.get("MONITOR_FOLDER", [])
     for idx, _folder in enumerate(monitored_folders):
-        pool.apply_async(monitor_folder_wrapper, args=(idx, _folder))
+        pool.apply_async(monitoring_folder_wrapper, args=(idx + 1, _folder))
     pool.close()
     pool.join()
 
