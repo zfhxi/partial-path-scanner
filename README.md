@@ -19,12 +19,12 @@
 
 * QNAP x86_64系统
 * docker部署plex media server
-* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/share/SSD1T/03cd2/{aliyun,115}`
+* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/share/SSD1T/03cd2/{aliyun,115}`，文件夹缓存期40s。
 
 **测试环境2**
 * Unraid 7.0.0-beta.1
 * app中心部署官方的EmbyServer
-* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/mnt/user/CloudDrive/{aliyun,115}`
+* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/mnt/user/CloudDrive/{aliyun,115}`，文件夹缓存期40s。
 
 
 **docker-compose部署**
@@ -40,7 +40,7 @@ services:
       - POOL_SIZE=4 # 多进程监测的进程数
     volumes:
       - ./config:/config
-      # 以下目录挂载的写法，要和plex容器一致！（如果你的plex不是套件的话）
+      # 以下目录的挂载，尽量和plex保持一致!
       - /share/SSD1T/03cd2:/share/SSD1T/03cd2:rslave # cd2挂载到本地
       - /share/HDD1:/share/HDD1 # 本地盘1
       - /share/HDD2:/share/HDD2 # 本地盘2

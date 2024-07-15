@@ -13,10 +13,6 @@ fi
 cp /template/config.yaml /config/config_template.yaml
 
 
-launch(){
-    # 运行 Python 脚本
-    touch /app/output.log && echo -e "日志记录开始："
-    cd /app && python -u main.py
-}
-
-launch | tee -a /app/output.log
+# 运行 Python 脚本
+touch /app/output.log
+cd /app && python -u main.py | tee -a /app/output.log

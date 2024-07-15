@@ -1,5 +1,5 @@
+coloredlogs==15.0.1
 PlexAPI==4.15.15
 PyYAML==6.0.1
 Requests==2.32.3
-termcolor==2.4.0
 watchdog==4.0.1
