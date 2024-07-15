@@ -61,7 +61,7 @@ def monitoring_folder_func(idx, folder, event_handler):
     logger.info(f"目录{idx}[{folder}]监测启动完成！")
     try:
         while True:
-            time.sleep(1)
+            time.sleep(4294967)
     except KeyboardInterrupt:
         observer.stop()
         logger.info(f"目录{idx}[{folder}]监测取消！")
