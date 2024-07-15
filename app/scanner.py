@@ -2,8 +2,13 @@ from pathlib import Path
 from plexapi.server import PlexServer
 from urllib.parse import quote_plus
 import requests
+from datetime import datetime
 from requests import RequestException
 from termcolor import colored
+
+
+def current_time():
+    return datetime.now().replace(microsecond=0)
 
 
 def is_subpath(_path: Path, _parent: Path) -> bool:
@@ -36,7 +41,7 @@ class PlexScanner:
             self.pms = PlexServer(self.server_cnf["host"], self.server_cnf["token"])
             self.plex_libraies = self.pms.library.sections()
         except Exception as e:
-            print(colored(f"[ERROR-plex] Plex Media Server连接失败！{e}", "red"))
+            print(colored(f"[{current_time()}][ERROR-plex] Plex Media Server连接失败！{e}", "red"))
         self.path_mapping_rules = get_path_mapping_rules(self.server_cnf)
 
     def plex_find_libraries(self, path: Path, libraries):
@@ -57,7 +62,7 @@ class PlexScanner:
                                 path = path.parent
                             return lib.key, str(path)
         except Exception as err:
-            print(f"[ERROR-plex] 查找媒体库出错：{str(err)}")
+            print(f"[{current_time()}][ERROR-plex] 查找媒体库出错：{str(err)}")
         return "", ""
 
     # def plex_scan_specific_path(self, plex_libraies, directory):
@@ -68,10 +73,10 @@ class PlexScanner:
                 break
         lib_key, path = self.plex_find_libraries(Path(directory), self.plex_libraies)
         if bool(lib_key) and bool(path):
-            print(f"[INFO-plex] 刷新媒体库：lib_key[{lib_key}] - path[{path}]")
+            print(f"[{current_time()}][INFO-plex] 刷新媒体库：lib_key[{lib_key}] - path[{path}]")
             self.pms.query(f"/library/sections/{lib_key}/refresh?path={quote_plus(Path(path).as_posix())}")
         else:
-            print(f"[ERROR-plex] 未定位到媒体库：lib_key[{lib_key}] - path[{path}]")
+            print(f"[{current_time()}][ERROR-plex] 未定位到媒体库：lib_key[{lib_key}] - path[{path}]")
 
 
 # 参考https://github.com/NiNiyas/autoscan/blob/master/jelly_emby.py#L88
@@ -97,8 +102,8 @@ class EmbyScanner:
                 json=data,
             )
             if command.status_code == 204:
-                print(colored(f"[INFO-emby] 刷新{self.server_type}中的：[{directory}]", "green"))
+                print(colored(f"[{current_time()}][INFO-emby] 刷新{self.server_type}中的：[{directory}]", "green"))
                 pass
         except RequestException as e:
-            print(colored(f"[ERROR-emby] 刷新失败：path[{directory}]!", "red"))
+            print(colored(f"[{current_time()}][ERROR-emby] 刷新失败：path[{directory}]!", "red"))
             raise RequestException(colored(f"Error occurred when trying to send scan request to {self.server_type}. {e}", "red"))  # fmt: skip

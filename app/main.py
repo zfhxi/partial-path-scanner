@@ -3,29 +3,31 @@ import os
 import yaml
 import functools
 import time
-from datetime import datetime
 from termcolor import colored
 import multiprocessing as mp
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import PatternMatchingEventHandler
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from scanner import PlexScanner, EmbyScanner
-
-
-def current_time():
-    return datetime.now().replace(microsecond=0)
+from scanner import PlexScanner, EmbyScanner, current_time
 
 
 class FileChangeHandler(PatternMatchingEventHandler):
-    """_summary_
-
-    Args:
-        FileSystemEventHandler (_type_): _description_
-    """
-
-    def __init__(self, ignore_patterns, ignore_directories, folders, scanners) -> None:
-        super().__init__(ignore_patterns=ignore_patterns, ignore_directories=ignore_directories)
+    def __init__(
+        self,
+        folders,
+        scanners,
+        patterns=None,
+        ignore_patterns=None,
+        ignore_directories=None,
+        case_sensitive=False,
+    ) -> None:
+        super().__init__(
+            patterns=patterns,
+            ignore_patterns=ignore_patterns,
+            ignore_directories=ignore_directories,
+            case_sensitive=case_sensitive,
+        )
         # 忽略隐藏文件夹
         self.folders = folders
         self.scanners = scanners
@@ -73,10 +75,10 @@ def launch(config):
         scanners.append(EmbyScanner(config))
 
     event_handler = FileChangeHandler(
-        ignore_patterns=[".*"],
-        ignore_directories=True,
         folders=monitored_folders,
         scanners=scanners,
+        ignore_patterns=[".*"],
+        ignore_directories=True,
     )
     monitoring_folder_wrapper = functools.partial(monitoring_folder_func, event_handler=event_handler)
     # 构建进程池
