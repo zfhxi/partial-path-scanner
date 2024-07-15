@@ -7,7 +7,7 @@ from datetime import datetime
 from termcolor import colored
 import multiprocessing as mp
 from watchdog.observers.polling import PollingObserver
-from watchdog.events import FileSystemEventHandler
+from watchdog.events import PatternMatchingEventHandler
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from scanner import PlexScanner, EmbyScanner
@@ -17,54 +17,26 @@ def current_time():
     return datetime.now().replace(microsecond=0)
 
 
-class FileChangeHandler(FileSystemEventHandler):
+class FileChangeHandler(PatternMatchingEventHandler):
     """_summary_
 
     Args:
         FileSystemEventHandler (_type_): _description_
     """
 
-    def __init__(self, func, folders) -> None:
-        super().__init__()
-        self.func = func
+    def __init__(self, ignore_patterns, ignore_directories, folders, scanners) -> None:
+        super().__init__(ignore_patterns=ignore_patterns, ignore_directories=ignore_directories)
+        # 忽略隐藏文件夹
         self.folders = folders
+        self.scanners = scanners
 
-    def should_ignore(self, path):
-        if path in self.folders:
-            # 不刷新顶级监测目录
-            print(f"[{current_time()}][WARN] 忽略处理：{path}，原因：不刷新顶级目录[{path}]！")
-            return True
-        root_folder = ""
-        for p in self.folders:
-            if path.startswith(p):
-                root_folder = p
-                break
+    def process(self, path):
+        for scanner in self.scanners:
+            scanner.scan_directory(path)
 
-        if bool(root_folder) and not os.path.exists(root_folder):
-            # 最顶级的监测目录发生变动，但是不存在了（可能挂载点被卸载了、或被删除），忽略处理
-            print(f"[{current_time()}][WARN] 忽略处理：{path}，原因：监控目录[{root_folder}]似乎被卸载/删除！")
-            return True
-
-    def on_modified(self, event):
-        if not self.should_ignore(event.src_path):
-            print(f'[{current_time()}][WARN] 修改[{event.src_path}]')
-            self.func(event.src_path)
-
-    def on_created(self, event):
-        if not self.should_ignore(event.src_path):
-            print(f'[{current_time()}][WARN] 创建[{event.src_path}]')
-            self.func(event.src_path)
-
-    def on_deleted(self, event):
-        if not self.should_ignore(event.src_path):
-            # TODO: 调用plexapi
-            print(f'[{current_time()}][WARN] 删除[{event.src_path}]')
-            self.func(event.src_path)
-
-    def on_moved(self, event):
-        if not self.should_ignore(event.src_path):
-            '''似乎文件的移动也被认为是从一个文件夹删除到另一个文件夹创建'''
-            print(f"[{current_time()}][WARN] 移动[{event.src_path}]到[{event.dest_path}]")
+    def on_any_event(self, event):
+        print(f'[{current_time()}][WARN] {event.event_type}[{event.src_path}]')
+        self.process(event.src_path)
 
 
 def read_config(yaml_fn):
@@ -74,17 +46,6 @@ def read_config(yaml_fn):
         for server in servers:
             assert server in ["emby", "plex"]
         return config
-
-
-def scanning_callback(path, scanners):
-    """回调函数，传给监听器，当文件发生变化时调用
-
-    Args:
-        scanners (list): 多个scanner
-        path (string): 变化的文件/文件夹路径
-    """
-    for scanner in scanners:
-        scanner.scan_directory(path)
 
 
 def monitoring_folder_func(idx, folder, event_handler):
@@ -110,9 +71,13 @@ def launch(config):
         scanners.append(PlexScanner(config))
     if 'emby' in servers:
         scanners.append(EmbyScanner(config))
-    # 包装回调函数
-    worker_callback = functools.partial(scanning_callback, scanners=scanners)
-    event_handler = FileChangeHandler(worker_callback, monitored_folders)
+
+    event_handler = FileChangeHandler(
+        ignore_patterns=[".*"],
+        ignore_directories=True,
+        folders=monitored_folders,
+        scanners=scanners,
+    )
     monitoring_folder_wrapper = functools.partial(monitoring_folder_func, event_handler=event_handler)
     # 构建进程池
     POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
