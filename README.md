@@ -1,34 +1,33 @@
 # partial-path-scanner
 
-利用watchdog监控目录变化，然后进行plex/emby media server的局部扫描。
+利用watchdog监控目录变化，然后进行plex/emby media server的局部扫描。  
+Utilize watchdog to monitor directory changes, then carry out partial scans for plex/emby media server.
 
-## 注意
+## Disclaimer
 
-* 本项目处于探索中，不建议小白直接使用。若出现资源损坏现象，概不负责！
-
-
-## 使用场景
-
-* 定期监测本地目录的修改时间，并触发plex/emby的局部扫描
+* 本项目处于探索中，不建议小白直接使用。若出现资源损坏现象，概不负责！  
+This project is in the exploration stage, not recommended for beginners to use directly. We are not responsible for any resource damage that may occur.
 
 
-## 部署
-**个人环境简要说明**
+## Usage
 
-**测试环境1**
+### Environment
+**Setting 1**
 
-* QNAP x86_64系统
-* docker部署plex media server
-* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/share/SSD1T/03cd2/{aliyun,115}`，文件夹缓存期40s。
+* QNAP x86_64
+* Plex Media Server with docker
+* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/share/SSD1T/03cd2/{aliyun,115}`，文件夹缓存期40s。  
+Add aliyundrive or 115 network disk to clouddrive2, and mount them to the local directories `/share/SSD1T/03cd2/{aliyun,115}`, with a folder cache period of 40s.
 
-**测试环境2**
+**Setting 2**
 * Unraid 7.0.0-beta.1
-* app中心部署官方的EmbyServer
-* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/mnt/user/CloudDrive/{aliyun,115}`，文件夹缓存期40s。
+* EmbyServer from app center
+* clouddrive2添加阿里云盘/115网盘，挂载到本地目录`/mnt/user/CloudDrive/{aliyun,115}`，文件夹缓存期40s。  
+Add aliyundrive or 115 network disk to clouddrive2, and mount them to the local directories `/mnt/user/CloudDrive/{aliyun,115}`, with a folder cache period of 40s.
 
 
-**docker-compose部署**
-
+### Deploy
+`docker-compose.yaml`:
 ```yaml
 services:
   partial-path-scanner:
@@ -37,15 +36,13 @@ services:
     network_mode: host
     restart: unless-stopped
     environment:
-      - POOL_SIZE=4 # 多进程监测的进程数
+      - POOL_SIZE=4 # Number of processes for multi-process monitoring
     volumes:
       - ./config:/config
-      # 以下目录的挂载，尽量和plex保持一致!
-      - /share/SSD1T/03cd2:/share/SSD1T/03cd2:rslave # cd2挂载到本地
-      - /share/HDD1:/share/HDD1 # 本地盘1
-      - /share/HDD2:/share/HDD2 # 本地盘2
+      - /mnt/user/CloudDrive:/mnt/user/CloudDrive:rslave # mapping the path mounted the network drive.
 ```
-* 部署后，修改`./config/config.yaml`中的plex/emby信息和需要监控的目录后，再重启。
+* 部署后，修改`./config/config.yaml`中的plex/emby信息和需要监控的目录后，再重启。  
+After deployment, modify the plex/emby information and the directories to be monitored in `./config/config.yaml`, then restart.
 
 ## TODO
 

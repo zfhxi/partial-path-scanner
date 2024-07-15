@@ -30,7 +30,6 @@ class FileChangeHandler(PatternMatchingEventHandler):
             ignore_directories=ignore_directories,
             case_sensitive=case_sensitive,
         )
-        # 忽略隐藏文件夹
         self.folders = folders
         self.scanners = scanners
 
@@ -54,17 +53,25 @@ def read_config(yaml_fn):
 
 
 def monitoring_folder_func(idx, folder, event_handler):
-    logger.info(f"目录{idx}[{folder}]监测启动...")
+    """create a observer to monitor the folder
+
+    Args:
+        idx (int): folder number
+        folder (string): the absolute folder path
+        event_handler : the event handler
+    """
+    logger.info(f"Folder{idx}[{folder}] monitor is launching...")
     observer = PollingObserver()
     observer.schedule(event_handler, folder, recursive=True)
     observer.start()
-    logger.info(f"目录{idx}[{folder}]监测启动完成！")
+    logger.info(f"Folder{idx}[{folder}] monitor is now active!")
     try:
         while True:
+            # set a big sleep time to avoid high CPU usage
             time.sleep(4294967)
     except KeyboardInterrupt:
         observer.stop()
-        logger.info(f"目录{idx}[{folder}]监测取消！")
+        logger.info(f"Folder{idx}[{folder}] monitor is deactived!")
     observer.join()
 
 
@@ -84,9 +91,9 @@ def launch(config):
         ignore_directories=True,
     )
     monitoring_folder_wrapper = functools.partial(monitoring_folder_func, event_handler=event_handler)
-    # 构建进程池
+    # build a process pool to monitor multiple folders
     POOL_SIZE = int(os.getenv("POOL_SIZE", 1))
-    logger.info(f"启动进程池，大小：{POOL_SIZE}")
+    logger.info(f"Launching a pool with a size {POOL_SIZE}!")
     pool = mp.Pool(POOL_SIZE)
 
     for idx, _folder in enumerate(monitored_folders):
@@ -96,16 +103,16 @@ def launch(config):
 
 
 if __name__ == "__main__":
-    logger.info(f"\n##################################################")
-    logger.info(f"开始监测...")
+    logger.info(f"\n####################################################################################################")  # fmt: skip
+    logger.info(f"Start to monitoring folders...")
     CONFIG_FILE = os.getenv("CONFIG_FILE", "./config/config.yaml")
     try:
         config = read_config(CONFIG_FILE)
         launch(config)
     except Exception as e:
-        logger.error(f"监测or刷新失败！")
+        logger.error(f"Failed to monitor or refresh folders！")
         logger.error(e)
     finally:
         pass
-    logger.warning(f"结束监测   ")
-    logger.info(f"##################################################")
+    logger.warning(f"End of monitoring folders!")
+    logger.info(f"####################################################################################################")

@@ -1,11 +1,11 @@
-servers: ['plex','emby'] # 可只保留一个['plex']或者['emby']
+servers: ['plex','emby'] # You can only keep one ['plex'] or ['emby'].
 plex:
   host: http://127.0.0.1:32400
-  token: 你的plex token
+  token: plex token
 emby:
   host: http://127.0.0.1:8096
-  api_key: 你的emby api_key 
-  path_mapping: # 假设你的plex和emby在不同服务器上，那么可能需要做路径映射
+  api_key: emby api_key 
+  path_mapping: # Assuming your plex and emby are on different servers, then you may need to do path mapping
     enable: true
     rules:
       - from: /share/SSD1T/03cd2/115
@@ -13,7 +13,7 @@ emby:
       - from: /share/SSD1T/03cd2/aliyun
         to: /mnt/user/CloudDrive/aliyundrive
 MONITOR_FOLDER:
-  - /share/SSD1T/03cd2/115/电影
-  - /share/SSD1T/03cd2/115/电视
-  - /share/SSD1T/03cd2/aliyun/电影
-  - /share/SSD1T/03cd2/aliyun/电视
+  - /share/SSD1T/03cd2/115/Movies
+  - /share/SSD1T/03cd2/115/TVs
+  - /share/SSD1T/03cd2/aliyun/Movies
+  - /share/SSD1T/03cd2/aliyun/TVs
