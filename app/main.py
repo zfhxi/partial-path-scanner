@@ -70,7 +70,7 @@ class PathQueueThread(threading.Thread):
                         raise ValueError(f"Invalid scan type: {scanner.scan_type}")
                     self.pool_executor.submit(self.process, scanner, path, self.event)
                 except queue.Empty:
-                    pass
+                    time.sleep(10)
 
     def process(self, scanner, path, event):
         """
@@ -116,6 +116,7 @@ class FileChangeHandler(PatternMatchingEventHandler):
         # setting the thread as daemon and start it
         self.path_queue_thread.daemon = True
         self.path_queue_thread.start()
+        self.umount_flag = False
 
     def should_ignore(self, event):
         if '/.' in event.src_path or event.src_path in self.monitored_folders:
@@ -138,6 +139,10 @@ class FileChangeHandler(PatternMatchingEventHandler):
         self.put_queue(path)
 
     def on_deleted(self, event):
+        if event.src_path in self.monitored_folders:
+            logger.error(f"[{event.event_type.upper()}][{event.src_path}], possibly due to umount operation!")
+            self.umount_flag = True
+            return
         if self.should_ignore(event):
             return
         path = event.src_path
@@ -194,24 +199,12 @@ def monitoring_folder_func(idx, folder, monitored_folders, scanners):
     stopped = False
     try:
         while True:
-            """
-            if not os.path.exists(folder):
-                if not stopped:
-                    observer.stop()
-                    stopped = True
-                    logger.warning(f"Observer for folder{idx}[{folder}] is stopped!")
-            else:
-                if stopped:
-                    observer = PollingObserver()
-                    observer.schedule(event_handler, folder, recursive=True)
-                    observer.start()
-                    stopped = False
-                    logger.warning(f"Observer for folder{idx}[{folder}] is re-activated!")
-            """
-            if not observer.is_alive():
+            if event_handler.umount_flag:
                 stop_event.set()
                 observer.stop()
+                observer.join()
                 stopped = True
+                event_handler.umount_flag = False
                 logger.warning(f"Observer for folder{idx}[{folder}] is stopped!")
             else:
                 if stopped:
@@ -220,11 +213,12 @@ def monitoring_folder_func(idx, folder, monitored_folders, scanners):
                     stop_event.clear()
                     observer.start()
                     stopped = False
+                    event_handler.umount_flag = False
                     logger.warning(f"Observer for folder{idx}[{folder}] is re-activated!")
 
             # set a big sleep time to avoid high CPU usage
             # time.sleep(4294967)
-            time.sleep(600)
+            time.sleep(10)
     except KeyboardInterrupt:
         observer.stop()
         logger.info(f"Folder{idx}[{folder}] monitor is deactived!")
