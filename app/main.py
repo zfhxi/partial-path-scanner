@@ -33,7 +33,13 @@ class UniqueQueue:
         self.added_items.remove(item)
         return item
 
+    def get_nowait(self):
+        item = self.queue.get_nowait()
+        self.added_items.remove(item)
+        return item
+
     def empty(self):
+        self.added_items.clear()
         return self.queue.empty()
 
 
@@ -55,13 +61,16 @@ class PathQueueThread(threading.Thread):
     def run(self) -> None:
         while not self.event.is_set():
             for scanner in self.scanners:
-                if scanner.scan_type == ScanType.FILE_BASED:
-                    path = self.file_queue.get()
-                elif scanner.scan_type == ScanType.PATH_BASED:
-                    path = self.path_queue.get()
-                else:
-                    raise ValueError(f"Invalid scan type: {scanner.scan_type}")
-                self.pool_executor.submit(self.process, scanner, path, self.event)
+                try:
+                    if scanner.scan_type == ScanType.FILE_BASED:
+                        path = self.file_queue.get_nowait()
+                    elif scanner.scan_type == ScanType.PATH_BASED:
+                        path = self.path_queue.get_nowait()
+                    else:
+                        raise ValueError(f"Invalid scan type: {scanner.scan_type}")
+                    self.pool_executor.submit(self.process, scanner, path, self.event)
+                except queue.Empty:
+                    pass
 
     def process(self, scanner, path, event):
         """
