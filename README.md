@@ -31,21 +31,8 @@ Monitor the directories `/115/Public/{电影,电视}` on the QNAP device in the 
 
 
 ### Deploy
-`docker-compose.yaml`:
-```yaml
-services:
-  partial-path-scanner:
-    image: zfhxi/partialpathscanner:dev
-    container_name: partial-path-scanner
-    network_mode: host
-    restart: unless-stopped
-    environment:
-      - CRONTAB="*/30 * * * *" # if the storage of your netdisk is large, you can set it to * */1 * * * or * */2 * * *.
-    volumes:
-      - ./config:/config
-```
 
-先建立`./config/config.yaml`文件，内容如下：
+先建立`xxxx/config/config.yaml`文件，内容如下：
 ```yaml
 cd2:
   host: http://192.168.xxx.xxx:19798
@@ -76,8 +63,30 @@ MONITOR_FOLDER:
     blacklist: ['/115/Public/电影/日本电影'] # 黑名单，不会被扫描
     overwrite_db: false
 ```
-* 部署后，修改`./config/config.yaml`中的plex/emby信息和需要监控的目录后，再重启。  
-After deployment, modify the plex/emby information and the directories to be monitored in `./config/config.yaml`, then restart.
+再基于如下`docker-compose.yaml`构建docker容器:
+```yaml
+services:
+  partial-path-scanner:
+    image: zfhxi/partialpathscanner:dev
+    container_name: partial-path-scanner
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - CRONTAB="*/30 * * * *" # if the storage of your netdisk is large, you can set it to * */1 * * * or * */2 * * *.
+    volumes:
+      - xxx/config:/config
+```
+或者直接使用`docker run`命令:
+```bash
+docker run --name=partial-path-scanner \
+        --env='CRONTAB="*/30 * * * *"' \
+        --volume=xxx/config:/config:rw \
+        --network=host \
+        --restart=unless-stopped \
+        zfhxitest/partialpathscanner:dev
+```
+
+每次更改`config.yaml`文件后，需要重启容器。
 
 ## TODO
 

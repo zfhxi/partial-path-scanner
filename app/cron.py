@@ -14,7 +14,7 @@ def list_jobs(_cron):
 
 
 if __name__ == "__main__":
-    _CRONTAB = os.getenv("CRONTAB", "* * * * *").strip('"')
+    _CRONTAB = os.getenv('CRONTAB', '*/30 * * * *').replace('"', '').replace("'", "")
     val_bool = CronSlices.is_valid(_CRONTAB)
     if not val_bool:
         raise ValueError(f"{_CRONTAB} is invalid!")
