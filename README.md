@@ -1,7 +1,7 @@
 # partial-path-scanner
 
-利用[pyton-clouddrive-client](https://github.com/ChenyangGao/web-mount-packs/tree/main/python-clouddrive-client)提供的clouddrive2 api配合目录的mtime属性监控目录变化，然后进行plex/emby media server的局部扫描。  
-Using the clouddrive2 api provided by [pyton-clouddrive-client](https://github.com/ChenyangGao/web-mount-packs/tree/main/python-clouddrive-client) in conjunction with the mtime attribute of the directory to monitor directory changes, and then perform a partial scan of the media paths in plex/emby media server.
+利用[python-clouddrive-client](https://github.com/ChenyangGao/web-mount-packs/tree/main/python-clouddrive-client)提供的clouddrive2 api配合目录的mtime属性监控目录变化，然后进行plex/emby media server的局部扫描（即定期遍历所有目录，检测目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描）。  
+Using the clouddrive2 api provided by [python-clouddrive-client](https://github.com/ChenyangGao/web-mount-packs/tree/main/python-clouddrive-client) in conjunction with the mtime attribute of the directory to monitor directory changes, and then perform a partial scan of the media paths in plex/emby media server (i.e., periodically traversing all directories, detecting if the mtime attribute of a directory has changed, and scanning the media paths in that directory if it has changed).
 
 ## Disclaimer
 
@@ -38,7 +38,7 @@ cd2:
   host: http://192.168.xxx.xxx:19798
   user: your@mail.com
   password: your-password
-servers: ['plex','emby']
+servers: ['plex','emby'] # 可以只保留'plex'或'emby'
 plex:
   host: http://192.168.xxx.xxxx:32400
   token: your-plex-token
@@ -91,3 +91,4 @@ docker run --name=partial-path-scanner \
 ## TODO
 
 - [ ] find more bugs.
+- [x] ~~阿里云盘目录的mtime不会随子文件新增而变化，需要额外的逻辑处理。~~（never in plan）
