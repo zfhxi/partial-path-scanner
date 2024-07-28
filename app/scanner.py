@@ -1,49 +1,16 @@
+import os, sys
 from pathlib import Path
 from plexapi.server import PlexServer
 from urllib.parse import quote_plus
 import requests
-from datetime import datetime
 from requests import RequestException
-import coloredlogs, logging
 from enum import Enum, unique
 
-
-# refer to:
-# https://vra.github.io/2019/09/10/colorful-logging/
-COLOR_FIELD_STYLES = dict(
-    asctime=dict(color='green'),
-    hostname=dict(color='magenta'),
-    levelname=dict(color='green'),
-    filename=dict(color='magenta'),
-    name=dict(color='blue'),
-    threadName=dict(color='green'),
-)
-
-COLOR_LEVEL_STYLES = dict(
-    debug=dict(color='green'),
-    info=dict(color='cyan'),
-    warning=dict(color='yellow'),
-    error=dict(color='red'),
-    critical=dict(color='red'),
-)
-coloredlogs.install(
-    level="DEBUG",
-    isatty=True,
-    fmt="[%(levelname)s] [%(asctime)s] [%(filename)s:%(lineno)d] %(message)s",
-    level_styles=COLOR_LEVEL_STYLES,
-    field_styles=COLOR_FIELD_STYLES,
-)
-
-
-def getLogger(name):
-    return logging.getLogger(name)
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from utils import getLogger
 
 
 logger = getLogger(__name__)
-
-
-def current_time():
-    return datetime.now().replace(microsecond=0)
 
 
 def is_subpath(_path: Path, _parent: Path) -> bool:

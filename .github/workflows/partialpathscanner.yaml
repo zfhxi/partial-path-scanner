@@ -29,4 +29,4 @@ jobs:
 
       - name: partialpathscanner
         run: |
-          docker buildx build --platform linux/amd64 -t $DOCKERHUB_USERNAME/partialpathscanner:latest -t $DOCKERHUB_USERNAME/partialpathscanner:${GITHUB_SHA::7} -f Dockerfile . --push
+          docker buildx build --platform linux/amd64 -t $DOCKERHUB_USERNAME/partialpathscanner:dev -t $DOCKERHUB_USERNAME/partialpathscanner:${GITHUB_SHA::7} -f Dockerfile . --push

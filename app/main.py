@@ -1,266 +1,170 @@
 import sys
 import os
-import yaml
 import functools
-import time
-import multiprocessing as mp
+from datetime import datetime
 
-# from threading import Thread
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from watchdog.observers.polling import PollingObserver
-from watchdog.events import PatternMatchingEventHandler
-import queue
+from keyvalue_sqlite import KeyValueSqlite
+from clouddrive import CloudDriveClient, CloudDrivePath
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from scanner import PlexScanner, EmbyScanner, getLogger, ScanType
+from scanner import PlexScanner, EmbyScanner, ScanType
+from utils import getLogger, get_other_pids_by_script_name, load_yaml_config, str2bool
 
 logger = getLogger(__name__)
 
 
-class UniqueQueue:
-    def __init__(self):
-        self.queue = queue.Queue()
-        self.added_items = set()
-
-    def put(self, item):
-        if item not in self.added_items:
-            self.queue.put(item)
-            self.added_items.add(item)
-
-    def get(self):
-        item = self.queue.get()
-        self.added_items.remove(item)
-        return item
-
-    def get_nowait(self):
-        item = self.queue.get_nowait()
-        self.added_items.remove(item)
-        return item
-
-    def empty(self):
-        self.added_items.clear()
-        return self.queue.empty()
-
-
-class PathQueueThread(threading.Thread):
-    """use a thread to process file path in a queue, avoid blocking the main thread
-    refer to: https://github.com/vwvm/store/blob/37da0846f1a5a3712055d818e513d9d1e2b67379/python/backupCopy%E5%A4%87%E4%BB%BD/Watch.py#L168
-    """
-
-    def __init__(self, scanners, file_queue: queue.Queue, path_queue: UniqueQueue, event: threading.Event):
-        super().__init__()
-        self.scanners = scanners
-        self.file_queue = file_queue
-        self.path_queue = path_queue
-        self.event = event
-        worker_num = int(os.getenv("NUM_WORKERS", 1))
-        logger.info(f"Launching a thread with a size {worker_num} to process file path in a queue!")
-        self.pool_executor = ThreadPoolExecutor(max_workers=worker_num)
-
-    def run(self) -> None:
-        while not self.event.is_set():
-            for scanner in self.scanners:
-                try:
-                    if scanner.scan_type == ScanType.FILE_BASED:
-                        path = self.file_queue.get_nowait()
-                    elif scanner.scan_type == ScanType.PATH_BASED:
-                        path = self.path_queue.get_nowait()
-                    else:
-                        raise ValueError(f"Invalid scan type: {scanner.scan_type}")
-                    self.pool_executor.submit(self.process, scanner, path, self.event)
-                except queue.Empty:
-                    time.sleep(10)
-
-    def process(self, scanner, path, event):
-        """
-        while not event.is_set():
-            try:
-                scanner.scan_directory(path)
-                break
-            except Exception as e:
-                logger.error(f"Failed to scan {path}!\n{e}")
-                time.sleep(1)
-        """
-        scanner.scan_directory(path)
-
-
-class FileChangeHandler(PatternMatchingEventHandler):
-    def __init__(
-        self,
-        monitored_folders,
-        scanners,
-        stop_event: threading.Event,
-        patterns=None,
-        ignore_patterns=None,
-        ignore_directories=False,
-        case_sensitive=False,
-    ):
-        super().__init__(
-            patterns=patterns,
-            ignore_patterns=ignore_patterns,
-            ignore_directories=ignore_directories,
-            case_sensitive=case_sensitive,
-        )
-        self.monitored_folders = monitored_folders
-        self.stop_event = stop_event
-        # create a thread pool to process the file path
-        self.file_queue = queue.Queue()
-        self.path_queue = UniqueQueue()  # avoid duplicate path
-        self.path_queue_thread = PathQueueThread(
-            scanners=scanners,
-            file_queue=self.file_queue,
-            path_queue=self.path_queue,
-            event=stop_event,
-        )
-        # setting the thread as daemon and start it
-        self.path_queue_thread.daemon = True
-        self.path_queue_thread.start()
-        self.umount_flag = False
-
-    def should_ignore(self, event):
-        if '/.' in event.src_path or event.src_path in self.monitored_folders:
-            return True
-        else:
-            return False
-
-    def put_queue(self, path):
-        self.file_queue.put(path)
-        if os.path.isfile(path):
-            self.path_queue.put(os.path.dirname(path))
-        else:
-            self.path_queue.put(path)
-
-    def on_created(self, event):
-        if self.should_ignore(event):
-            return
-        path = event.src_path
-        logger.warning(f"[{event.event_type.upper()}][{path}]")
-        self.put_queue(path)
-
-    def on_deleted(self, event):
-        if event.src_path in self.monitored_folders or not os.path.exists(event.src_path):
-            logger.error(f"[{event.event_type.upper()}][{event.src_path}], possibly due to umount operation!")
-            self.umount_flag = True
-            return
-        if self.should_ignore(event):
-            return
-        path = event.src_path
-        logger.warning(f"[{event.event_type.upper()}][{path}]")
-        self.put_queue(path)
-
-    def on_modified(self, event):
-        if True:
-            return
-        path = event.src_path
-        logger.warning(f"[{event.event_type.upper()}][{path}]")
-        self.path_queue.put(path)
-
-    def on_moved(self, event):
-        if self.should_ignore(event):
-            return
-        src_path = event.src_path
-        dest_path = event.dest_path
-        logger.warning(f"[{event.event_type.upper()}][from {src_path} to {dest_path}]")
-        self.put_queue(src_path)
-        self.put_queue(dest_path)
-
-
-def read_config(yaml_fn):
-    with open(yaml_fn, "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-        servers = config['servers']
-        for server in servers:
-            assert server in ["emby", "plex"]
-        return config
-
-
-def monitoring_folder_func(idx, folder, monitored_folders, scanners):
-    """create a observer to monitor the folder
-
-    Args:
-        idx (int): folder number
-        folder (string): the absolute folder path
-    """
-    stop_event = threading.Event()
-    event_handler = FileChangeHandler(
-        monitored_folders=monitored_folders,
-        scanners=scanners,
-        stop_event=stop_event,
-        ignore_patterns=None,
-        ignore_directories=False,
-    )
-    logger.info(f"Folder{idx}[{folder}] monitor is launching...")
-    observer = PollingObserver()
-    observer.schedule(event_handler, folder, recursive=True)
-    observer.start()
-    observer.is_alive()
-    logger.warning(f"Folder{idx}[{folder}] monitor is now active!")
-    stopped = False
+def get_mtime(path, fs):
     try:
-        while True:
-            if event_handler.umount_flag:
-                stop_event.set()
-                observer.stop()
-                observer.join()
-                stopped = True
-                event_handler.umount_flag = False
-                logger.warning(f"Observer for folder{idx}[{folder}] is stopped!")
-            else:
-                if stopped:
-                    observer = PollingObserver()
-                    observer.schedule(event_handler, folder, recursive=True)
-                    stop_event.clear()
-                    observer.start()
-                    stopped = False
-                    event_handler.umount_flag = False
-                    logger.warning(f"Observer for folder{idx}[{folder}] is re-activated!")
+        # if os.path.exists(path):
+        if isinstance(path, CloudDrivePath):
+            mtime = path.mtime
+        elif isinstance(path, str):
+            mtime = fs.attr(path)['mtime']
+        else:
+            raise TypeError(f"Invalid path type: {type(path)}")
+        # return f"{mtime}|{time.ctime(mtime)}
+        return f"{mtime}"
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return None
 
-            # set a big sleep time to avoid high CPU usage
-            # time.sleep(4294967)
-            time.sleep(10)
-    except KeyboardInterrupt:
-        observer.stop()
-        logger.info(f"Folder{idx}[{folder}] monitor is deactived!")
-    observer.join()
-    # close the thread pool
-    event_handler.filepath_queue_thread.pool_executor.shutdown()
+
+def find_updated_folders(top, fs, db, blacklist):
+    # 找出哪个子目录或者文件变更了，只遍历一级深度（不进行向下递归）
+    updated_folders = []
+    subs = fs.listdir_attr(top)
+    # subs = fs.listdir_path(full_sub_d)
+    for sub in subs:
+        sub_full_path = sub['path']
+        if sub_full_path in blacklist or sub['name'].startswith("."):
+            continue
+        base_mtime = db.get(sub_full_path)
+        new_mtime = sub['mtime']
+        if base_mtime is None or base_mtime != new_mtime:
+            updated_folders.append(sub_full_path)
+            db.set(sub_full_path, new_mtime)
+    # 当文件夹A找不到被更新的子目录B1或子文件B2（有可能删除了B3，导致了A的mtime产生了变化），添加A作为更新目录
+    # 但这样做可能扫描很多内容，比如删除了`/115/电影/天空之城`这个文件夹，会导致刷新`/115/电影`整个目录
+    # if len(updated_folders) == 0:
+    #    updated_folders.append(full_sub_d)
+    return updated_folders
+
+
+def path_scan_workder(
+    path,
+    db,
+    only_db_initializing,
+    overwrite_db,
+    get_mtime_func,
+    find_updated_folders_func,
+    scanning_func,
+):
+    base_mtime = db.get(path)
+    new_mtime = get_mtime_func(path)
+    if base_mtime is None or base_mtime != new_mtime:
+        if not only_db_initializing:
+            # 找出产生更新的子目录来进行扫库
+            updated_folders = find_updated_folders_func(path)
+            scanning_func(updated_folders)
+            db.set(path, new_mtime)
+        elif base_mtime is None or overwrite_db:
+            db.set(path, new_mtime)
+            logger.info(f"Mtime of path[{path}] has been updated to {new_mtime}.")
+
+
+def fs_walk(fs, top: str, blacklist=[], **kwargs):
+    for path, dirs, files in fs.walk_attr(top, topdown=True, **kwargs):
+        _dirs = [d for d in dirs if d['path'] not in blacklist]  # not valid when topdown=False
+        dirs[:] = _dirs
+        yield path, [a["name"] for a in dirs], [a["name"] for a in files]
+
+
+def scanning_process(path_list, fs, scanners):
+    file_queue = []
+    path_queue = []
+    for path in path_list:
+        file_queue.append(path)
+        if fs.attr(path)['isDirectory']:
+            path_queue.append(path)
+        else:
+            path_queue.append(os.path.dirname(path))
+    file_queue = set(file_queue)
+    path_queue = set(path_queue)
+    for scanner in scanners:
+        if scanner.scan_type == ScanType.FILE_BASED:
+            queue = file_queue
+        elif scanner.scan_type == ScanType.PATH_BASED:
+            queue = path_queue
+        else:
+            raise ValueError(f"Invalid scan type: {scanner.scan_type}")
+        for path in queue:
+            scanner.scan_directory(path)
 
 
 def launch(config):
+    cd2_client = CloudDriveClient(config['cd2']['host'], config['cd2']['user'], config['cd2']['password'])
+    fs = cd2_client.fs
+    DB_PATH = os.getenv("DB_FILE", "./config/dbkv.sqlite")
+    db = KeyValueSqlite(DB_PATH, "mtimebasedscan")
+
     servers = config.get("servers")
-    monitored_folders = config.get("MONITOR_FOLDER", [])
+    monitored_folder_dict = config.get("MONITOR_FOLDER", {})
+    monitored_folders = list(monitored_folder_dict.keys())
+    get_mtime_func = functools.partial(get_mtime, fs=fs)
     scanners = []
     if 'plex' in servers:
         scanners.append(PlexScanner(config))
     if 'emby' in servers:
         scanners.append(EmbyScanner(config))
+    scanning_func = functools.partial(scanning_process, fs=fs, scanners=scanners)
 
-    monitoring_folder_wrapper = functools.partial(
-        monitoring_folder_func, monitored_folders=monitored_folders, scanners=scanners
-    )
-    # build a process pool to monitor multiple folders
-    POOL_SIZE = min(len(monitored_folders), os.cpu_count())
-    logger.info(f"Launching a pool with a size {POOL_SIZE}!")
-    pool = mp.Pool(POOL_SIZE)
+    if len(sys.argv) < 2:
+        only_db_initializing = False
+    else:
+        only_db_initializing = str2bool(sys.argv[1])
+        if only_db_initializing:
+            logger.info(f"Build the database for the first time only!")
 
-    for idx, _folder in enumerate(monitored_folders):
-        pool.apply_async(monitoring_folder_wrapper, args=(idx + 1, _folder))
-    pool.close()
-    pool.join()
+    for _folder in monitored_folders:
+        _blacklist = list(map(lambda x: x.rstrip('/'), monitored_folder_dict[_folder].get("blacklist", [])))
+        overwrite_db_flag = monitored_folder_dict[_folder].get("overwrite_db", False)
+        find_updated_folders_func = functools.partial(find_updated_folders, fs=fs, db=db, blacklist=_blacklist)
+        worker_partial = functools.partial(
+            path_scan_workder,
+            db=db,
+            only_db_initializing=only_db_initializing,
+            overwrite_db=overwrite_db_flag,
+            get_mtime_func=get_mtime_func,
+            find_updated_folders_func=find_updated_folders_func,
+            scanning_func=scanning_func,
+        )
+        # 监测子目录、子文件
+        for root, dirs, files in fs_walk(fs, top=_folder, blacklist=_blacklist):
+            worker_partial(root)
 
 
 if __name__ == "__main__":
-    logger.info(f"\n####################################################################################################")  # fmt: skip
-    logger.info(f"Start to monitoring folders...")
+    if bool(get_other_pids_by_script_name("main.py")):
+        logger.warning("A monitoring task is already running!")
+        # sys.exit(1)
+    t_start = datetime.now()
+    logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")  # fmt: skip
+    logger.info(f"Start to monitoring folders@{t_start.replace(microsecond=0)}...")
     CONFIG_FILE = os.getenv("CONFIG_FILE", "./config/config.yaml")
     try:
-        config = read_config(CONFIG_FILE)
+        config = load_yaml_config(CONFIG_FILE)
         launch(config)
     except Exception as e:
         logger.error(f"Failed to monitor or refresh folders！")
         logger.error(e)
     finally:
         pass
-    logger.warning(f"End of monitoring folders!")
-    logger.info(f"####################################################################################################")
+    t_end = datetime.now()
+    total_seconds = (t_end - t_start).total_seconds()
+    if total_seconds < 60:
+        logger.info(f"Time cost: {total_seconds:.2f} seconds!")
+    else:
+        total_minutes = total_seconds / 60
+        logger.info(f"Time cost: {total_minutes:.2f} minutes!")
+    logger.warning(f"End of monitoring folders@{t_end.replace(microsecond=0)}!")
+    logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")  # fmt: skip

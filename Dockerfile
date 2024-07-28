@@ -1,12 +1,14 @@
 FROM python:3.12-alpine
 
-# 环境变量
 ENV LANG="C.UTF-8" \
     TZ="Asia/Shanghai" \
-    CONFIG_FILE="/config/config.yaml"
+    CONFIG_FILE="/config/config.yaml" \
+    CRONTAB="*/10 * * * *" \
+    DB_FILE="/config/dbkv.sqlite"
 
 COPY ./requirements.txt requirements.txt
-RUN apk add logrotate htop \
+RUN apk add logrotate \
+    && apk add gcc python3-dev musl-dev linux-headers \
     && pip install --no-cache-dir -r requirements.txt\
     && mkdir /config \
     && mkdir /app

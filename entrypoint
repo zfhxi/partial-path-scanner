@@ -1,18 +1,27 @@
 #!/bin/bash
 
-# 启动 logrotate 并定时运行
+# launch logrotate
 while true; do
     /usr/sbin/logrotate /etc/logrotate.d/partialpathscanner
     sleep 10m
 done &
 
-# 如果宿主机的目录中没有配置文件，就从镜像中复制
+# copy config file if not exists
 if [ ! -f /config/config.yaml ]; then
     cp /template/config.yaml /config/config.yaml
 fi
 cp /template/config.yaml /config/config_template.yaml
 
+launch(){
+    # Run the Python script on startup
+    touch /app/output.log
+    cd /app && python -u main.py true
 
-# 运行 Python 脚本
-touch /app/output.log
-cd /app && python -u main.py | tee -a /app/output.log
+    # Schedule the monitoring task
+    echo -e "\nScheduling the task..."
+    cd /app && python -u cron.py
+    crond
+}
+
+launch >> /app/output.log 2>&1 &
+tail -f /app/output.log
