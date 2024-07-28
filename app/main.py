@@ -139,7 +139,7 @@ class FileChangeHandler(PatternMatchingEventHandler):
         self.put_queue(path)
 
     def on_deleted(self, event):
-        if event.src_path in self.monitored_folders:
+        if event.src_path in self.monitored_folders or not os.path.exists(event.src_path):
             logger.error(f"[{event.event_type.upper()}][{event.src_path}], possibly due to umount operation!")
             self.umount_flag = True
             return

@@ -7,7 +7,6 @@ ENV LANG="C.UTF-8" \
 
 COPY ./requirements.txt requirements.txt
 RUN apk add logrotate htop \
-    && pip install --upgrade pip\
     && pip install --no-cache-dir -r requirements.txt\
     && mkdir /config \
     && mkdir /app
