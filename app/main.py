@@ -46,6 +46,7 @@ def find_updated_folders(top, fs, db, blacklist):
         sub_mtime = str(fs.attr(sub_full_path)['mtime'])
         if sub_mtime > old_mtime:
             updated_folders.append(sub_full_path)
+            # BUG: 如果新增了folder，此处未将其mtime写入db，当下次遍历目录比对mtime时，会再次扫描该folder。此处摆烂，允许media server再次扫描。
     if len(updated_folders) == 0:  # 启用激进方案
         updated_folders.append(top)
     return updated_folders
@@ -75,7 +76,9 @@ def path_scan_workder(
 
 def fs_walk(fs, top: str, blacklist=[], **kwargs):
     for path, dirs, files in fs.walk_attr(top, topdown=True, **kwargs):
-        _dirs = [d for d in dirs if d['path'] not in blacklist]  # not valid when topdown=False
+        _dirs = [
+            d for d in dirs if not (d['path'] in blacklist or d['name'].startswith('.'))
+        ]  # not valid when topdown=False
         dirs[:] = _dirs
         yield path, [a["name"] for a in dirs], [a["name"] for a in files]
 
