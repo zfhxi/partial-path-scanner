@@ -4,6 +4,10 @@ import psutil
 import coloredlogs, logging
 from datetime import datetime
 
+# Suppress logging warnings, refer to https://stackoverflow.com/questions/78780089/how-do-i-get-rid-of-the-annoying-terminal-warning-when-using-gemini-api
+os.environ["GRPC_VERBOSITY"] = "ERROR"
+# os.environ["GLOG_minloglevel"] = "2"
+
 
 def load_yaml_config(yaml_fn):
     with open(yaml_fn, "r") as f:
