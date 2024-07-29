@@ -30,23 +30,24 @@ def get_mtime(path, fs):
 
 
 def find_updated_folders(top, fs, db, blacklist):
-    # 找出哪个子目录或者文件变更了，只遍历一级深度（不进行向下递归）
+    '''找出哪个子目录或者文件变更了，只遍历一级深度（不进行向下递归）；
+    比较子文件（夹）的mtime和top目录在数据库中的old_mtime，如果子文件（夹）的mtime大于top的old_mtime，则认为该子文件（夹）发生了变更；
+    FIXME: 当有子文件（夹）被删除时，所有的子文件（夹）的mtime都不会大于old_mtime，该如何处理？
+        保守方案：只扫描新增的子文件（夹），不扫描被删除的子文件（夹），媒体库里存在一些不可用媒体文件；
+        激进方案：当updated_folders为空时，扫描top目录。但假设删除/115/电视/国产剧/xxx1，可能会导致扫描/115/电视/国产剧/，产生大量扫描。
+    '''
     updated_folders = []
     subs = fs.listdir_attr(top)
-    # subs = fs.listdir_path(full_sub_d)
+    old_mtime = db.get(top)
     for sub in subs:
         sub_full_path = sub['path']
         if sub_full_path in blacklist or sub['name'].startswith("."):
             continue
-        base_mtime = db.get(sub_full_path)
-        new_mtime = sub['mtime']
-        if base_mtime is None or base_mtime != new_mtime:
+        sub_mtime = str(fs.attr(sub_full_path)['mtime'])
+        if sub_mtime > old_mtime:
             updated_folders.append(sub_full_path)
-            db.set(sub_full_path, new_mtime)
-    # 当文件夹A找不到被更新的子目录B1或子文件B2（有可能删除了B3，导致了A的mtime产生了变化），添加A作为更新目录
-    # 但这样做可能扫描很多内容，比如删除了`/115/电影/天空之城`这个文件夹，会导致刷新`/115/电影`整个目录
-    # if len(updated_folders) == 0:
-    #    updated_folders.append(full_sub_d)
+    if len(updated_folders) == 0:  # 启用激进方案
+        updated_folders.append(top)
     return updated_folders
 
 
@@ -123,7 +124,7 @@ def launch(config):
     else:
         only_db_initializing = str2bool(sys.argv[1])
         if only_db_initializing:
-            logger.info(f"Build the database for the first time only!")
+            logger.info(f"Build the database only!")
 
     for _folder in monitored_folders:
         _blacklist = list(map(lambda x: x.rstrip('/'), monitored_folder_dict[_folder].get("blacklist", [])))
