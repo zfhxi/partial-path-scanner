@@ -1,4 +1,4 @@
-clouddrive==0.0.12.2.9
+clouddrive==0.0.12.3
 coloredlogs==15.0.1
 keyvalue_sqlite==1.0.7
 PlexAPI==4.15.15

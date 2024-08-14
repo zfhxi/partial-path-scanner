@@ -7,7 +7,7 @@ from keyvalue_sqlite import KeyValueSqlite
 from clouddrive import CloudDriveClient, CloudDrivePath
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from scanner import PlexScanner, EmbyScanner, ScanType
+from scanner import PlexScanner, EmbyScanner
 from utils import getLogger, get_other_pids_by_script_name, load_yaml_config, str2bool
 
 logger = getLogger(__name__)
@@ -85,23 +85,8 @@ def fs_walk(fs, top: str, blacklist=[], **kwargs):
 
 
 def scanning_process(path_list, fs, scanners):
-    file_queue = []
-    path_queue = []
-    for path in path_list:
-        file_queue.append(path)
-        if fs.attr(path)['isDirectory']:
-            path_queue.append(path)
-        else:
-            path_queue.append(os.path.dirname(path))
-    file_queue = set(file_queue)
-    path_queue = set(path_queue)
+    queue = set(path_list)
     for scanner in scanners:
-        if scanner.scan_type == ScanType.FILE_BASED:
-            queue = file_queue
-        elif scanner.scan_type == ScanType.PATH_BASED:
-            queue = path_queue
-        else:
-            raise ValueError(f"Invalid scan type: {scanner.scan_type}")
         for path in queue:
             scanner.scan_directory(path)
 

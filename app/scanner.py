@@ -4,7 +4,6 @@ from plexapi.server import PlexServer
 from urllib.parse import quote_plus
 import requests
 from requests import RequestException
-from enum import Enum, unique
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from utils import getLogger
@@ -35,12 +34,6 @@ def get_path_mapping_rules(server_config):
         return []
 
 
-@unique
-class ScanType(Enum):
-    FILE_BASED = 1
-    PATH_BASED = 2
-
-
 # refer to:
 # https://github.com/jxxghp/MoviePilot/blob/19165eff759f14e9947e772c574f9775b388df0e/app/modules/plex/plex.py#L355
 class PlexScanner:
@@ -52,7 +45,6 @@ class PlexScanner:
         except Exception as e:
             logger.error(f"[PLEX] Failed to connect to the Plex Media Server!\n{e}")
         self.path_mapping_rules = get_path_mapping_rules(self.server_cnf)
-        self.scan_type = ScanType.PATH_BASED
 
     def plex_find_libraries(self, path: Path, libraries):
         """
@@ -97,7 +89,6 @@ class EmbyScanner:
         self.host = self.server_cnf['host']
         self.api_key = self.server_cnf['api_key']
         self.path_mapping_rules = get_path_mapping_rules(self.server_cnf)
-        self.scan_type = ScanType.FILE_BASED
 
     def scan_directory(self, directory, **kwargs):
         for rule in self.path_mapping_rules:
