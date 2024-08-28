@@ -15,7 +15,9 @@ cp /template/config.yaml /config/config_template.yaml
 launch(){
     # Run the Python script on startup
     touch /app/output.log
-    cd /app && python -u main.py true
+    if [ "${STARTUP_BUILD_DB}" = "true" ] ; then
+        cd /app && python -u main.py true
+    fi
 
     # Schedule the monitoring task
     echo -e "\nScheduling the task..."

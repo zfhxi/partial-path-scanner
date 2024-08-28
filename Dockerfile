@@ -4,7 +4,8 @@ ENV LANG="C.UTF-8" \
     TZ="Asia/Shanghai" \
     CONFIG_FILE="/config/config.yaml" \
     CRONTAB="*/10 * * * *" \
-    DB_FILE="/config/dbkv.sqlite"
+    DB_FILE="/config/dbkv.sqlite" \
+    STARTUP_BUILD_DB="true"
 
 COPY ./requirements.txt requirements.txt
 RUN apk add logrotate \

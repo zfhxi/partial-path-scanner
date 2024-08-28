@@ -73,6 +73,7 @@ services:
     restart: unless-stopped
     environment:
       - CRONTAB="*/30 * * * *" # if the storage of your netdisk is large, you can set it to * */1 * * * or * */2 * * *.
+      #- STARTUP_BUILD_DB=true # if you want to build the database when the container starts, keep it to the default value, otherwise set it to false.
     volumes:
       - xxx/config:/config
 ```
