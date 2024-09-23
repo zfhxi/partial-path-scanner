@@ -5,8 +5,8 @@ Using the clouddrive2 api provided by [python-clouddrive-client](https://github.
 
 ## Disclaimer
 
-* 本项目处于探索中，不建议小白直接使用。若出现资源损坏现象，概不负责！  
-This project is in the exploration stage, not recommended for beginners to use directly. We are not responsible for any resource damage that may occur.
+* 本项目处于探索中，不建议小白直接使用。
+This project is in the exploration stage, not recommended for beginners to use directly.
 
 
 ## Usage
@@ -24,7 +24,7 @@ Only monitor the directories `/share/SSD1T/03cd2/115/{电影,电视}`.
 * Unraid 7.0.0-beta.2
 * EmbyServer from app center
 * clouddrive2添加115网盘，挂载到本地目录`/mnt/user/CloudDrive/115`，文件夹缓存期40s。  
-Add 115 netdisk to clouddrive2, and mount it to the path of local filesystem `/mnt/user/CloudDrive/aliyundrive`, with a folder cache period of 40s.
+Add 115 netdisk to clouddrive2, and mount it to the path of local filesystem `/mnt/user/CloudDrive/115`, with a folder cache period of 40s.
 * 在Setting 1环境中的QNAP设备上监测cd2目录`/115/Public/{电影,电视}`，扫描时，映射到`/mnt/user/CloudDrive/115/{电影,电视}`。  
 Monitor the directories `/115/Public/{电影,电视}` on the QNAP device in the Setting 1 environment, and when scanning, map to `/mnt/user/CloudDrive/115/{电影,电视}`.
 
@@ -72,7 +72,7 @@ services:
     network_mode: host
     restart: unless-stopped
     environment:
-      - CRONTAB="*/30 * * * *" # if the storage of your netdisk is large, you can set it to * */1 * * * or * */2 * * *.
+      - CRONTAB="*/30 * * * *" # if the storage of your netdisk is large, you can set it to 0 */1 * * * or 0 */2 * * *.
       #- STARTUP_BUILD_DB=true # if you want to build the database when the container starts, keep it to the default value, otherwise set it to false.
     volumes:
       - xxx/config:/config
@@ -84,7 +84,7 @@ docker run --name=partial-path-scanner \
         --volume=xxx/config:/config:rw \
         --network=host \
         --restart=unless-stopped \
-        zfhxitest/partialpathscanner:dev
+        zfhxi/partialpathscanner:dev
 ```
 
 每次更改`config.yaml`文件后，需要重启容器。
