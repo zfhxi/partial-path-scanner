@@ -2,6 +2,7 @@ import sys
 import os
 import functools
 from datetime import datetime
+import argparse
 
 from keyvalue_sqlite import KeyValueSqlite
 from clouddrive import CloudDriveClient, CloudDrivePath
@@ -12,6 +13,12 @@ from utils import getLogger, get_other_pids_by_script_name, load_yaml_config, st
 
 logger = getLogger(__name__)
 
+def get_cmd_args():
+    parser = argparse.ArgumentParser(description="partial path scanner")
+    parser.add_argument("--only-db-init", type=str2bool, default=False,  help="仅初始化来构建mtime数据库，不进行扫描")
+    parser.add_argument("--scan-path", type=str, default=None,  help="仅扫描clouddrive2中的指定路径，不创建扫描任务")
+    args = parser.parse_args()
+    return args
 
 def get_mtime(path, fs):
     try:
@@ -92,6 +99,7 @@ def scanning_process(path_list, fs, scanners):
 
 
 def launch(config):
+    args=get_cmd_args()
     cd2_client = CloudDriveClient(config['cd2']['host'], config['cd2']['user'], config['cd2']['password'])
     fs = cd2_client.fs
     DB_PATH = os.getenv("DB_FILE", "./config/dbkv.sqlite")
@@ -107,13 +115,15 @@ def launch(config):
     if 'emby' in servers:
         scanners.append(EmbyScanner(config))
     scanning_func = functools.partial(scanning_process, fs=fs, scanners=scanners)
+    if bool(args.scan_path):
+        '''扫描完指定路径后退出脚本'''
+        logger.warning(f"Scanning path: {args.scan_path}...")
+        scanning_func([args.scan_path])
+        logger.warning(f"Finished scanning path: {args.scan_path}.")
+        return
 
-    if len(sys.argv) < 2:
-        only_db_initializing = False
-    else:
-        only_db_initializing = str2bool(sys.argv[1])
-        if only_db_initializing:
-            logger.info(f"Build the database only!")
+    if args.only_db_init:
+        logger.info(f"Build the database only!")
 
     for _folder in monitored_folders:
         _blacklist = list(map(lambda x: x.rstrip('/'), monitored_folder_dict[_folder].get("blacklist", [])))
@@ -122,7 +132,7 @@ def launch(config):
         worker_partial = functools.partial(
             path_scan_workder,
             db=db,
-            only_db_initializing=only_db_initializing,
+            only_db_initializing=args.only_db_init,
             overwrite_db=overwrite_db_flag,
             get_mtime_func=get_mtime_func,
             find_updated_folders_func=find_updated_folders_func,

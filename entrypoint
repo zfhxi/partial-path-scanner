@@ -16,7 +16,7 @@ launch(){
     # Run the Python script on startup
     touch /app/output.log
     if [ "${STARTUP_BUILD_DB}" = "true" ] ; then
-        cd /app && python -u main.py true
+        cd /app && python -u main.py --only-db-init true
     fi
 
     # Schedule the monitoring task
