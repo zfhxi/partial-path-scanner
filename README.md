@@ -1,12 +1,10 @@
 # partial-path-scanner
 
 利用[python-clouddrive-client](https://github.com/ChenyangGao/web-mount-packs/tree/main/python-clouddrive-client)提供的clouddrive2 api配合目录的mtime属性监控目录变化，然后进行plex/emby media server的局部扫描（即定期遍历所有目录，检测目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描）。  
-Using the clouddrive2 api provided by [python-clouddrive-client](https://github.com/ChenyangGao/web-mount-packs/tree/main/python-clouddrive-client) in conjunction with the mtime attribute of the directory to monitor directory changes, and then perform a partial scan of the media paths in plex/emby media server (i.e., periodically traversing all directories, detecting if the mtime attribute of a directory has changed, and scanning the media paths in that directory if it has changed).
 
 ## Disclaimer
 
-* 本项目处于探索中，不建议小白直接使用。
-This project is in the exploration stage, not recommended for beginners to use directly.
+* 本项目处于探索中，不建议小白直接使用。  
 
 
 ## Usage
@@ -16,17 +14,13 @@ This project is in the exploration stage, not recommended for beginners to use d
 * QNAP x86_64
 * Plex Media Server with docker
 * clouddrive2添加115网盘，挂载到本地目录`/share/SSD1T/03cd2/115`，文件夹缓存期40s。  
-Add 115 netdisk to clouddrive2, and mount it to the path of local filesystem `/share/SSD1T/03cd2/115`, with a folder cache period of 40s.
 * 仅监测目录`/share/SSD1T/03cd2/115/{电影,电视}`。  
-Only monitor the directories `/share/SSD1T/03cd2/115/{电影,电视}`.
 
 **Setting 2**
 * Unraid 7.0.0-beta.2
 * EmbyServer from app center
 * clouddrive2添加115网盘，挂载到本地目录`/mnt/user/CloudDrive/115`，文件夹缓存期40s。  
-Add 115 netdisk to clouddrive2, and mount it to the path of local filesystem `/mnt/user/CloudDrive/115`, with a folder cache period of 40s.
 * 在Setting 1环境中的QNAP设备上监测cd2目录`/115/Public/{电影,电视}`，扫描时，映射到`/mnt/user/CloudDrive/115/{电影,电视}`。  
-Monitor the directories `/115/Public/{电影,电视}` on the QNAP device in the Setting 1 environment, and when scanning, map to `/mnt/user/CloudDrive/115/{电影,电视}`.
 
 
 
@@ -88,6 +82,11 @@ docker run --name=partial-path-scanner \
 ```
 
 每次更改`config.yaml`文件后，需要重启容器。
+
+运行逻辑：  
+1. 容器启动时，构建数据库，将监控目录的所有子目录的mtime属性存入数据库。  
+2. 定时任务每隔30分钟执行一次，检查clouddrive2目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描。  
+3. 扫描时，根据配置文件中的`path_mapping`规则，将clouddrive2中的路径映射到plex/emby media server的路径。  
 
 ## TODO
 
