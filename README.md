@@ -20,7 +20,7 @@
 * Unraid 7.0.0-beta.2
 * EmbyServer from app center
 * clouddrive2添加115网盘，挂载到本地目录`/mnt/user/CloudDrive/115`，文件夹缓存期40s。  
-* 在Setting 1环境中的QNAP设备上监测cd2目录`/115/Public/{电影,电视}`，扫描时，映射到`/mnt/user/CloudDrive/115/{电影,电视}`。  
+* 在Setting 1环境中的QNAP设备上监测cd2目录`/115/{电影,电视}`，扫描时，映射到`/mnt/user/CloudDrive/115/{电影,电视}`。  
 
 
 
@@ -39,7 +39,7 @@ plex:
   path_mapping: # cd2中的路径映射到plex中
     enable: true
     rules:
-      - from: /115/Public
+      - from: /115
         to: /share/SSD1T/03cd2/115
 emby:
   host: https://your.emby.com
@@ -47,14 +47,14 @@ emby:
   path_mapping: # cd2中的路径映射到emby中
     enable: true
     rules:
-      - from: /115/Public
+      - from: /115
         to: /mnt/user/CloudDrive/115
 MONITOR_FOLDER:
-  /115/Public/电视:
-    blacklist: ['/115/Public/电视/纪录片'] # 黑名单，不会被扫描
+  /115/电视:
+    blacklist: ['/115/电视/纪录片'] # 黑名单，不会被扫描
     overwrite_db: false #构建数据库时，对数据库中已存在的时间采用覆盖模式（当该程序很久未启动时，且plex/emby media server早已扫描过网盘全部内容，数据库中的时间戳已经过时了，需要强制更新）
-  /115/Public/电影:
-    blacklist: ['/115/Public/电影/日本电影'] # 黑名单，不会被扫描
+  /115/电影:
+    blacklist: ['/115/电影/日本电影'] # 黑名单，不会被扫描
     overwrite_db: false
 ```
 再基于如下`docker-compose.yaml`构建docker容器:
