@@ -2,21 +2,21 @@
 
 利用[python-clouddrive-client](https://github.com/ChenyangGao/web-mount-packs/tree/main/python-clouddrive-client)提供的clouddrive2 api配合目录的mtime属性监控目录变化，然后进行plex/emby media server的局部扫描（即定期遍历所有目录，检测目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描）。  
 
-## Disclaimer
+## 免责声明
 
 * 本项目处于探索中，不建议小白直接使用。  
 
 
-## Usage
+## 用法
 
-### Environment
-**Setting 1**
+### 环境
+**测试环境 1**
 * QNAP x86_64
 * Plex Media Server with docker
 * clouddrive2添加115网盘，挂载到本地目录`/share/SSD1T/03cd2/115`，文件夹缓存期40s。  
 * 仅监测目录`/share/SSD1T/03cd2/115/{电影,电视}`。  
 
-**Setting 2**
+**测试环境 2**
 * Unraid 7.0.0-beta.2
 * EmbyServer from app center
 * clouddrive2添加115网盘，挂载到本地目录`/mnt/user/CloudDrive/115`，文件夹缓存期40s。  
@@ -24,7 +24,7 @@
 
 
 
-### Deploy
+### 部署
 
 先建立`xxxx/config/config.yaml`文件，内容如下：
 ```yaml
@@ -49,7 +49,7 @@ emby:
     rules:
       - from: /115
         to: /mnt/user/CloudDrive/115
-MONITOR_FOLDER:
+MONITOR_FOLDER: # 监控目录
   /115/电视:
     blacklist: ['/115/电视/纪录片'] # 黑名单，不会被扫描
     overwrite_db: false #构建数据库时，对数据库中已存在的时间采用覆盖模式（当该程序很久未启动时，且plex/emby media server早已扫描过网盘全部内容，数据库中的时间戳已经过时了，需要强制更新）
@@ -66,7 +66,7 @@ services:
     network_mode: host
     restart: unless-stopped
     environment:
-      - CRONTAB="*/30 * * * *" # if the storage of your netdisk is large, you can set it to 0 */1 * * * or 0 */2 * * *.
+      - CRONTAB="0 */1 * * *" # if the storage of your netdisk is large, you can set it to 0 */1 * * * or 0 */2 * * *.
       #- STARTUP_BUILD_DB=true # if you want to build the database when the container starts, keep it to the default value, otherwise set it to false.
     volumes:
       - xxx/config:/config
@@ -74,7 +74,7 @@ services:
 或者直接使用`docker run`命令:
 ```bash
 docker run --name=partial-path-scanner \
-        --env='CRONTAB="*/30 * * * *"' \
+        --env='CRONTAB="0 */1 * * *"' \
         --volume=xxx/config:/config:rw \
         --network=host \
         --restart=unless-stopped \
@@ -87,6 +87,19 @@ docker run --name=partial-path-scanner \
 1. 容器启动时，构建数据库，将监控目录的所有子目录的mtime属性存入数据库。  
 2. 定时任务每隔30分钟执行一次，检查clouddrive2目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描。  
 3. 扫描时，根据配置文件中的`path_mapping`规则，将clouddrive2中的路径映射到plex/emby media server的路径。  
+
+## 手动扫描特定目录
+
+（在容器正常创建并运行后）如果刚转存了某个剧的第二季，希望立马扫描该目录，可以执行：
+```bash
+docker exec -it partial-path-scanner python main.py --scan-path="/115/电视/国产动漫剧/xxxx (2022)/Season 2"
+```
+
+## 局限性
+
+**最近115风控厉害，建议cd2中115的maxQueriesPerSecond参数调小（如0.9），尽管这样会导致扫描时间加长，但可以缓解风控。并且建议`CRONTAB="0 */2 * * *"`，每两小时或者隔更久扫描一次。**
+
+本程序扫描的是cd2中加载（或缓存的）115目录列表，当检测的新文件时，会触发plex/emby media server的局部扫描，这时可能由于触发cd2从115网盘下载大量视频的媒体元信息，导致风控，所以建议调整`maxQueriesPerSecond`参数。
 
 ## TODO
 
