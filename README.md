@@ -26,7 +26,7 @@
 
 ### 部署
 
-先建立`xxxx/config/config.yaml`文件，内容如下：
+先建立`xxxx/partialpathscanner/config/config.yaml`文件，内容如下：
 ```yaml
 cd2:
   host: http://192.168.xxx.xxx:19798
@@ -50,13 +50,30 @@ emby:
       - from: /115
         to: /mnt/user/CloudDrive/115
 MONITOR_FOLDER: # 监控目录
-  /115/电视:
-    blacklist: ['/115/电视/纪录片'] # 黑名单，不会被扫描
-    overwrite_db: false #构建数据库时，对数据库中已存在的时间采用覆盖模式（当该程序很久未启动时，且plex/emby media server早已扫描过网盘全部内容，数据库中的时间戳已经过时了，需要强制更新）
-  /115/电影:
-    blacklist: ['/115/电影/日本电影'] # 黑名单，不会被扫描
-    overwrite_db: false
+  /115/Public/电视/国产动漫剧/shen墓 (2022)/Season 2:
+    schedule_interval: 1h
+    schedule_random_offset: 0.1
+  /115/Public/电视/国产动漫剧/完meishi界 (2021):
+    schedule_interval: 1h
+    schedule_random_offset: 0.1
+  /115/Public/电视/国产动漫剧/刺xxx七 (2018)/Season 5:
+    schedule_interval: 1h
+    schedule_random_offset: 0.1
+  /115/Public/电视/国产动漫剧/x来 (2024):
+    schedule_interval: 1h
+    schedule_random_offset: 0.1
+  /115/Public/电视:
+    schedule_interval: 1d
+    #blacklist: ['/115/Public/电视/综艺','/115/Public/电视/纪录片']
+  /115/Public/电影:
+    schedule_interval: 1d
 ```
+可选参数的说明：
+- `blacklist`：黑名单目录列表，不会被遍历。
+- `schedule_interval`：遍历扫描间隔，默认1h（由DEFAULT_INTERVAL确定），可更改为xm（分钟）、xh（小时）、xd（天），x为正整数。
+- `schedule_random_offset`：建议设置。随机扫描时间百分偏移，默认不偏移。若设置为0.1，则下一次扫描发生在`schedule_interval`~`schedule_interval*1.1`后。
+- `overwrite_db`: 一般不需要设置。构建数据库时，对数据库中已存在的时间采用覆盖模式（当该程序很久未启动时，且plex/emby media server早已扫描过网盘全部内容，数据库中的时间戳已经过时了，需要强制更新）
+
 再基于如下`docker-compose.yaml`构建docker容器:
 ```yaml
 services:
@@ -66,15 +83,14 @@ services:
     network_mode: host
     restart: unless-stopped
     environment:
-      - CRONTAB="0 */1 * * *" # if the storage of your netdisk is large, you can set it to 0 */1 * * * or 0 */2 * * *.
-      #- STARTUP_BUILD_DB=true # if you want to build the database when the container starts, keep it to the default value, otherwise set it to false.
+      - DEFAULT_INTERVAL="1h"
     volumes:
       - xxx/config:/config
 ```
 或者直接使用`docker run`命令:
 ```bash
 docker run --name=partial-path-scanner \
-        --env='CRONTAB="0 */1 * * *"' \
+        --env='DEFAULT_INTERVAL="1h"' \
         --volume=xxx/config:/config:rw \
         --network=host \
         --restart=unless-stopped \
@@ -85,7 +101,7 @@ docker run --name=partial-path-scanner \
 
 运行逻辑：  
 1. 容器启动时，构建数据库，将监控目录的所有子目录的mtime属性存入数据库。  
-2. 定时任务每隔30分钟执行一次，检查clouddrive2目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描。  
+2. 定时任务每间隔特定时间来遍历监控目录，检查该目录及其子目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描。  
 3. 扫描时，根据配置文件中的`path_mapping`规则，将clouddrive2中的路径映射到plex/emby media server的路径。  
 
 ## 手动扫描特定目录
@@ -97,9 +113,7 @@ docker exec -it partial-path-scanner python main.py --scan-path="/115/电视/国
 
 ## 局限性
 
-**最近115风控厉害，建议cd2中115的maxQueriesPerSecond参数调小（如0.9），尽管这样会导致扫描时间加长，但可以缓解风控。并且建议`CRONTAB="0 */2 * * *"`，每两小时或者隔更久扫描一次。**
-
-本程序扫描的是cd2中加载（或缓存的）115目录列表，当检测的新文件时，会触发plex/emby media server的局部扫描，这时可能由于触发cd2从115网盘下载大量视频的媒体元信息，导致风控，所以建议调整`maxQueriesPerSecond`参数。
+**最近115风控厉害，建议cd2中115的maxQueriesPerSecond参数调小（如0.9），尽管这样会导致扫描时间加长，但可以缓解风控。**
 
 ## TODO
 

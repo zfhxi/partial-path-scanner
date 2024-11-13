@@ -21,7 +21,7 @@ launch(){
 
     # Schedule the monitoring task
     echo -e "\nScheduling the task..."
-    cd /app && python -u cron.py
+    cd /app && python -u main.py
     crond
 }
 

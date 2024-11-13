@@ -6,7 +6,8 @@ from datetime import datetime
 
 # Suppress logging warnings, refer to https://stackoverflow.com/questions/78780089/how-do-i-get-rid-of-the-annoying-terminal-warning-when-using-gemini-api
 os.environ["GRPC_VERBOSITY"] = "ERROR"
-# os.environ["GLOG_minloglevel"] = "2"
+# os.environ["GLOG_minloglevel"] = "1"
+# os.environ["GLOG_minloglevel"] = "true"
 
 
 def load_yaml_config(yaml_fn):
@@ -67,7 +68,8 @@ COLOR_LEVEL_STYLES = dict(
     critical=dict(color='red'),
 )
 coloredlogs.install(
-    level="DEBUG",
+    # level="DEBUG",
+    level="INFO",
     isatty=True,
     fmt="[%(levelname)s] [%(asctime)s] [%(filename)s:%(lineno)d] %(message)s",
     level_styles=COLOR_LEVEL_STYLES,
@@ -76,4 +78,7 @@ coloredlogs.install(
 
 
 def getLogger(name):
-    return logging.getLogger(name)
+    # logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(name)
+    # logger.setLevel(logging.WARNING)
+    return logger

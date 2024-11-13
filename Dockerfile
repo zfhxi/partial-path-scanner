@@ -3,9 +3,11 @@ FROM python:3.12-alpine
 ENV LANG="C.UTF-8" \
     TZ="Asia/Shanghai" \
     CONFIG_FILE="/config/config.yaml" \
-    CRONTAB="*/10 * * * *" \
+    DEFAULT_INTERVAL="1h" \
     DB_FILE="/config/dbkv.sqlite" \
     STARTUP_BUILD_DB="true"
+
+    #- STARTUP_BUILD_DB=true # if you want to build the database when the container starts, keep it to the default value, otherwise set it to false.
 
 COPY ./requirements.txt requirements.txt
 RUN apk add logrotate \

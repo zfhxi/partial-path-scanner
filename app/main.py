@@ -3,6 +3,10 @@ import os
 import functools
 from datetime import datetime
 import argparse
+import re
+import schedule
+import time
+import math
 
 from keyvalue_sqlite import KeyValueSqlite
 from clouddrive import CloudDriveClient, CloudDrivePath
@@ -13,12 +17,46 @@ from utils import getLogger, get_other_pids_by_script_name, load_yaml_config, st
 
 logger = getLogger(__name__)
 
+
+class ScanningPool(object):
+    def __init__(self, fs, scanners):
+        self.fs = fs
+        self.scanners = scanners
+        self.pool = []
+
+    def scanning_process(self, path_list):
+        queue = set(path_list)
+        for scanner in self.scanners:
+            for path in queue:
+                scanner.scan_directory(path)
+
+    def put(self, path):
+        if type(path) == list:
+            self.pool.extend(path)
+        elif type(path) == str:
+            self.pool.append(path)
+        else:
+            raise TypeError(f"Invalid path type: {type(path)}")
+
+    def finish_scan(self):
+        queue = set(self.pool)
+        if len(queue) > 0:
+            logger.info("Scanning:")
+            for path in queue:
+                logger.warning(f"{path}")
+        for scanner in self.scanners:
+            for path in queue:
+                scanner.scan_directory(path)
+        self.pool.clear()
+
+
 def get_cmd_args():
     parser = argparse.ArgumentParser(description="partial path scanner")
-    parser.add_argument("--only-db-init", type=str2bool, default=False,  help="仅初始化来构建mtime数据库，不进行扫描")
-    parser.add_argument("--scan-path", type=str, default=None,  help="仅扫描clouddrive2中的指定路径，不创建扫描任务")
+    parser.add_argument("--only-db-init", type=str2bool, default=False, help="仅初始化来构建mtime数据库，不进行扫描")
+    parser.add_argument("--scan-path", type=str, default=None, help="仅扫描clouddrive2中的指定路径，不创建扫描任务")
     args = parser.parse_args()
     return args
+
 
 def get_mtime(path, fs):
     try:
@@ -67,7 +105,7 @@ def path_scan_workder(
     overwrite_db,
     get_mtime_func,
     find_updated_folders_func,
-    scanning_func,
+    scanning_pool,
 ):
     base_mtime = db.get(path)
     new_mtime = get_mtime_func(path)
@@ -75,7 +113,7 @@ def path_scan_workder(
         if not only_db_initializing:
             # 找出产生更新的子目录来进行扫库
             updated_folders = find_updated_folders_func(path)
-            scanning_func(updated_folders)
+            scanning_pool.put(updated_folders)
             db.set(path, new_mtime)
         elif base_mtime is None or overwrite_db:
             db.set(path, new_mtime)
@@ -91,74 +129,59 @@ def fs_walk(fs, top: str, blacklist=[], **kwargs):
         yield path, [a["name"] for a in dirs], [a["name"] for a in files]
 
 
-def scanning_process(path_list, fs, scanners):
-    queue = set(path_list)
-    for scanner in scanners:
-        for path in queue:
-            scanner.scan_directory(path)
-
-
-def launch(config):
-    args=get_cmd_args()
-    cd2_client = CloudDriveClient(config['cd2']['host'], config['cd2']['user'], config['cd2']['password'])
-    fs = cd2_client.fs
-    DB_PATH = os.getenv("DB_FILE", "./config/dbkv.sqlite")
-    db = KeyValueSqlite(DB_PATH, "mtimebasedscan")
+def manual_scan(args, config):
+    args = get_cmd_args()
+    fs = CloudDriveClient(config['cd2']['host'], config['cd2']['user'], config['cd2']['password']).fs
 
     servers = config.get("servers")
-    monitored_folder_dict = config.get("MONITOR_FOLDER", {})
-    monitored_folders = list(monitored_folder_dict.keys())
-    get_mtime_func = functools.partial(get_mtime, fs=fs)
     scanners = []
     if 'plex' in servers:
         scanners.append(PlexScanner(config))
     if 'emby' in servers:
         scanners.append(EmbyScanner(config))
-    scanning_func = functools.partial(scanning_process, fs=fs, scanners=scanners)
-    if bool(args.scan_path):
-        '''扫描完指定路径后退出脚本'''
-        logger.warning(f"Scanning path: {args.scan_path}...")
-        scanning_func([args.scan_path])
-        logger.warning(f"Finished scanning path: {args.scan_path}.")
-        return
-
-    if args.only_db_init:
-        logger.info(f"Build the database only!")
-
-    for _folder in monitored_folders:
-        _blacklist = list(map(lambda x: x.rstrip('/'), monitored_folder_dict[_folder].get("blacklist", [])))
-        overwrite_db_flag = monitored_folder_dict[_folder].get("overwrite_db", False)
-        find_updated_folders_func = functools.partial(find_updated_folders, fs=fs, db=db, blacklist=_blacklist)
-        worker_partial = functools.partial(
-            path_scan_workder,
-            db=db,
-            only_db_initializing=args.only_db_init,
-            overwrite_db=overwrite_db_flag,
-            get_mtime_func=get_mtime_func,
-            find_updated_folders_func=find_updated_folders_func,
-            scanning_func=scanning_func,
-        )
-        # 监测子目录、子文件
-        for root, dirs, files in fs_walk(fs, top=_folder, blacklist=_blacklist):
-            worker_partial(root)
+    scanning_pool = ScanningPool(fs, scanners)
+    '''扫描完指定路径后退出脚本'''
+    logger.warning(f"Scanning path: {args.scan_path}...")
+    scanning_pool.put(args.scan_path)
+    scanning_pool.finish_scan()
+    logger.warning(f"Finished scanning path: {args.scan_path}.")
 
 
-if __name__ == "__main__":
-    if bool(get_other_pids_by_script_name("main.py")):
-        logger.warning("A monitoring task is already running!")
-        # sys.exit(1)
+def folder_scan(args, config, db, _folder):
+    # BEGIN OF MONITORING
     t_start = datetime.now()
     logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")  # fmt: skip
-    logger.info(f"Start to monitoring folders@{t_start.replace(microsecond=0)}...")
-    CONFIG_FILE = os.getenv("CONFIG_FILE", "./config/config.yaml")
-    try:
-        config = load_yaml_config(CONFIG_FILE)
-        launch(config)
-    except Exception as e:
-        logger.error(f"Failed to monitor or refresh folders！")
-        logger.error(e)
-    finally:
-        pass
+    logger.info(f"Start to monitor [{_folder}]@{t_start.replace(microsecond=0)}...")
+
+    monitored_folder_dict = config.get("MONITOR_FOLDER", {})
+    overwrite_db_flag = monitored_folder_dict[_folder].get("overwrite_db", False)
+    fs = CloudDriveClient(config['cd2']['host'], config['cd2']['user'], config['cd2']['password']).fs
+    get_mtime_func = functools.partial(get_mtime, fs=fs)
+    _blacklist = list(map(lambda x: x.rstrip('/'), monitored_folder_dict[_folder].get("blacklist", [])))
+    find_updated_folders_func = functools.partial(find_updated_folders, fs=fs, db=db, blacklist=_blacklist)
+    _scanners = []
+    servers = config.get("servers")
+    if 'plex' in servers:
+        _scanners.append(PlexScanner(config))
+    if 'emby' in servers:
+        _scanners.append(EmbyScanner(config))
+    scanning_pool = ScanningPool(fs, _scanners)
+
+    worker_partial = functools.partial(
+        path_scan_workder,
+        db=db,
+        only_db_initializing=args.only_db_init,
+        overwrite_db=overwrite_db_flag,
+        get_mtime_func=get_mtime_func,
+        find_updated_folders_func=find_updated_folders_func,
+        scanning_pool=scanning_pool,
+    )
+    # 监测子目录、子文件
+    for root, dirs, files in fs_walk(fs, top=_folder, blacklist=_blacklist):
+        worker_partial(root)
+    scanning_pool.finish_scan()
+
+    # END OF MONITORING
     t_end = datetime.now()
     total_seconds = (t_end - t_start).total_seconds()
     if total_seconds < 60:
@@ -168,3 +191,77 @@ if __name__ == "__main__":
         logger.info(f"Time cost: {total_minutes:.2f} minutes!")
     logger.warning(f"End of monitoring folders@{t_end.replace(microsecond=0)}!")
     logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")  # fmt: skip
+
+
+def get_valid_interval(s):
+    pattern = re.compile(r'^\d+[m|h|d]$')
+    try:
+        if pattern.match(s):
+            return s
+    except Exception as e:
+        logger.error(f"Invalid interval: {s}")
+        logger.info(f"set to default interval: {s}")
+        return os.getenv("DEFAULT_INTERVAL", "1h")
+
+
+def launch(args, config):
+    DB_PATH = os.getenv("DB_FILE", "./config/dbkv.sqlite")
+    db = KeyValueSqlite(DB_PATH, "mtimebasedscan")
+    monitored_folder_dict = config.get("MONITOR_FOLDER", {})
+    monitored_folders = list(monitored_folder_dict.keys())
+
+    if args.only_db_init:
+        logger.info(f"Build the database only!")
+
+    for _folder in monitored_folders:
+        if args.only_db_init:
+            folder_scan(args, config, db, _folder)
+        else:
+            # 获取目录的扫描间隔
+            default_interval = os.getenv("DEFAULT_INTERVAL", "1h")
+            schedule_interval = get_valid_interval(
+                monitored_folder_dict[_folder].get("schedule_interval", default_interval)
+            )
+            schedule_interval_unit = schedule_interval[-1]
+            schedule_interval_num = int(schedule_interval[:-1])
+            if schedule_interval_unit == "m":
+                pass
+            elif schedule_interval_unit == "h":
+                schedule_interval_num *= 60
+            elif schedule_interval_unit == "d":
+                schedule_interval_num *= 60 * 24
+            else:
+                logger.error(f"Invalid schedule interval: {schedule_interval}")
+                sys.exit(1)
+            schedule_interval_num = max(schedule_interval_num, 1)
+            logger.info(f"Plan to monitor folder: {_folder} with interval: {schedule_interval}")
+            offset = float(monitored_folder_dict[_folder].get("schedule_random_offset", "-1"))
+            if offset > 0:
+                interval_num_offset_end = math.ceil(schedule_interval_num * (1 + offset))
+                schedule.every(schedule_interval_num).to(interval_num_offset_end).minutes.do(
+                    folder_scan, args, config, db, _folder
+                )
+            else:
+                schedule.every(schedule_interval_num).minutes.do(folder_scan, args, config, db, _folder)
+
+    if not args.only_db_init:
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+
+
+if __name__ == "__main__":
+    args = get_cmd_args()
+    try:
+        config = load_yaml_config(os.getenv("CONFIG_FILE", "./config/config.yaml"))
+    except Exception as e:
+        logger.error(e)
+        sys.exit(1)
+    if bool(args.scan_path):
+        manual_scan(args, config)
+        sys.exit(0)
+
+    if bool(get_other_pids_by_script_name("main.py")):
+        logger.warning("A monitoring task is already running!")
+        # exit(1)
+    launch(args, config)

@@ -74,7 +74,7 @@ class PlexScanner:
                 break
         lib_key, lib_title, path = self.plex_find_libraries(Path(directory), self.plex_libraies)
         if bool(lib_key) and bool(path):
-            logger.info(f"[PLEX] Scanning the library[{lib_title}] - path[{path}]")
+            # logger.info(f"[PLEX] Scanning the library[{lib_title}] - path[{path}]")
             self.pms.query(f"/library/sections/{lib_key}/refresh?path={quote_plus(Path(path).as_posix())}")
         else:
             logger.error(f"[PLEX] Unable to find a library for the path[{path}]!")
@@ -104,7 +104,7 @@ class EmbyScanner:
                 json=data,
             )
             if command.status_code == 204:
-                logger.info(f"[{self.server_type.upper()}] Scanning the path[{directory}]")
+                # logger.info(f"[{self.server_type.upper()}] Scanning the path[{directory}]")
                 pass
         except RequestException as e:
             logger.error(f"Failed to refresh the path[{directory}]!")
