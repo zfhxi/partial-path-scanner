@@ -19,10 +19,20 @@ logger = getLogger(__name__)
 
 
 class ScanningPool(object):
-    def __init__(self, fs, scanners):
+    def __init__(self, fs, config):
         self.fs = fs
-        self.scanners = scanners
+        self.config = config
         self.pool = []
+        self.scanners = []
+        self.init_scanners()
+
+    def init_scanners(self):
+        self.scanners.clear()
+        servers = self.config.get("servers")
+        if 'plex' in servers:
+            self.scanners.append(PlexScanner(self.config))
+        if 'emby' in servers:
+            self.scanners.append(EmbyScanner(self.config))
 
     def scanning_process(self, path_list):
         queue = set(path_list)
@@ -133,13 +143,7 @@ def manual_scan(args, config):
     args = get_cmd_args()
     fs = CloudDriveClient(config['cd2']['host'], config['cd2']['user'], config['cd2']['password']).fs
 
-    servers = config.get("servers")
-    scanners = []
-    if 'plex' in servers:
-        scanners.append(PlexScanner(config))
-    if 'emby' in servers:
-        scanners.append(EmbyScanner(config))
-    scanning_pool = ScanningPool(fs, scanners)
+    scanning_pool = ScanningPool(fs, config)
     '''扫描完指定路径后退出脚本'''
     logger.warning(f"Scanning path: {args.scan_path}...")
     scanning_pool.put(args.scan_path)
@@ -159,13 +163,7 @@ def folder_scan(args, config, db, _folder):
     get_mtime_func = functools.partial(get_mtime, fs=fs)
     _blacklist = list(map(lambda x: x.rstrip('/'), monitored_folder_dict[_folder].get("blacklist", [])))
     find_updated_folders_func = functools.partial(find_updated_folders, fs=fs, db=db, blacklist=_blacklist)
-    _scanners = []
-    servers = config.get("servers")
-    if 'plex' in servers:
-        _scanners.append(PlexScanner(config))
-    if 'emby' in servers:
-        _scanners.append(EmbyScanner(config))
-    scanning_pool = ScanningPool(fs, _scanners)
+    scanning_pool = ScanningPool(fs, config)
 
     worker_partial = functools.partial(
         path_scan_workder,
@@ -259,6 +257,7 @@ if __name__ == "__main__":
         sys.exit(1)
     if bool(args.scan_path):
         manual_scan(args, config)
+        time.sleep(1)
         sys.exit(0)
 
     if bool(get_other_pids_by_script_name("main.py")):

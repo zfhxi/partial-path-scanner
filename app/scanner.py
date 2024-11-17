@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, time
 from pathlib import Path
 from plexapi.server import PlexServer
 from urllib.parse import quote_plus
@@ -76,6 +76,7 @@ class PlexScanner:
         if bool(lib_key) and bool(path):
             # logger.info(f"[PLEX] Scanning the library[{lib_title}] - path[{path}]")
             self.pms.query(f"/library/sections/{lib_key}/refresh?path={quote_plus(Path(path).as_posix())}")
+            time.sleep(1)
         else:
             logger.error(f"[PLEX] Unable to find a library for the path[{path}]!")
 
@@ -103,6 +104,7 @@ class EmbyScanner:
                 headers=headers,
                 json=data,
             )
+            time.sleep(1)
             if command.status_code == 204:
                 # logger.info(f"[{self.server_type.upper()}] Scanning the path[{directory}]")
                 pass
