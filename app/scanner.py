@@ -38,13 +38,15 @@ def get_path_mapping_rules(server_config):
 # https://github.com/jxxghp/MoviePilot/blob/19165eff759f14e9947e772c574f9775b388df0e/app/modules/plex/plex.py#L355
 class PlexScanner:
     def __init__(self, config) -> None:
-        self.server_cnf = config["plex"]
+        self.server_type = 'plex'
+        self.server_cnf = config[self.server_type]
         try:
             self.pms = PlexServer(self.server_cnf["host"], self.server_cnf["token"])
             self.plex_libraies = self.pms.library.sections()
         except Exception as e:
             logger.error(f"[PLEX] Failed to connect to the Plex Media Server!\n{e}")
         self.path_mapping_rules = get_path_mapping_rules(self.server_cnf)
+        self.isfile_based_scanning = self.server_cnf.get('isfile_based_scanning', True)
 
     def plex_find_libraries(self, path: Path, libraries):
         """
@@ -90,6 +92,7 @@ class EmbyScanner:
         self.host = self.server_cnf['host']
         self.api_key = self.server_cnf['api_key']
         self.path_mapping_rules = get_path_mapping_rules(self.server_cnf)
+        self.isfile_based_scanning = self.server_cnf.get('isfile_based_scanning', True)
 
     def scan_directory(self, directory, **kwargs):
         for rule in self.path_mapping_rules:

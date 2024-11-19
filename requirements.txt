@@ -1,7 +1,7 @@
 clouddrive==0.0.12.3
 coloredlogs==15.0.1
 keyvalue_sqlite==1.0.7
-PlexAPI==4.15.15
+PlexAPI==4.16.0
 psutil==6.0.0
 PyYAML==6.0.1
 Requests==2.32.3

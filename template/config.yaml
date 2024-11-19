@@ -6,6 +6,7 @@ servers: ['plex','emby']
 plex:
   host: http://192.168.xxx.xxxx:32400
   token: your-plex-token
+  isfile_based_scanning: true # 基于局部文件的扫描，而不是扫描变更文件的父目录；否则扫描变更文件的父目录。如果变更的是目录，则扫描变更目录。
   path_mapping: # cd2中的路径映射到plex中
     enable: true
     rules:
@@ -14,6 +15,7 @@ plex:
 emby:
   host: https://your.emby.com
   api_key: your-emby-api-key
+  isfile_based_scanning: true
   path_mapping: # cd2中的路径映射到emby中
     enable: true
     rules:

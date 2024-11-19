@@ -36,7 +36,8 @@ servers: ['plex','emby'] # 可以只保留'plex'或'emby'
 plex:
   host: http://192.168.xxx.xxxx:32400
   token: your-plex-token
-  path_mapping: # cd2中的路径映射到plex中
+  isfile_based_scanning: false # 基于局部文件的扫描，而不是扫描变更文件的父目录；否则扫描变更文件的父目录。如果变更的是目录，则扫描变更目录。
+  path_mapping: # cd2中的路径映射到plex容器中的路径
     enable: true
     rules:
       - from: /115
@@ -44,7 +45,8 @@ plex:
 emby:
   host: https://your.emby.com
   api_key: your-emby-api-key
-  path_mapping: # cd2中的路径映射到emby中
+  isfile_based_scanning: true
+  path_mapping: # cd2中的路径映射到emby容器中的路径
     enable: true
     rules:
       - from: /115
@@ -113,9 +115,10 @@ docker exec -it partial-path-scanner python main.py --scan-path="/115/电视/国
 
 ## 局限性
 
-**最近115风控厉害，建议cd2中115的maxQueriesPerSecond参数调小（如0.9），尽管这样会导致扫描时间加长，但可以缓解风控。**
+**最近115风控厉害，建议cd2中115的maxQueriesPerSecond参数调小（如0.9），尽管这样会导致遍历目录树时间加长，但可以缓解风控。**
 
 ## TODO
 
 - [ ] find more bugs.
 - [x] ~~阿里云盘目录的mtime不会随子文件新增而变化，需要额外的逻辑处理。~~（never in plan）
+- [x] plex media server 1.41.2.9200版本似乎不支持xxx.mkv这种单个文件入库了，需要扫描父目录。

@@ -50,13 +50,28 @@ class ScanningPool(object):
 
     def finish_scan(self):
         queue = set(self.pool)
-        if len(queue) > 0:
-            logger.info("Scanning:")
-            for path in queue:
-                logger.warning(f"{path}")
-        for scanner in self.scanners:
-            for path in queue:
-                scanner.scan_directory(path)
+        if len(queue) <= 0:
+            return
+        file_based_queue = list(queue)
+        path_based_queue = []
+        for _p in queue:
+            if not self.fs.attr(_p)['isDirectory']:
+                path_based_queue.append(os.path.dirname(_p))
+            else:
+                path_based_queue.append(_p)
+        path_based_queue = list(set(path_based_queue))
+
+        # logger.info("Scanning:")
+        for _scanner in self.scanners:
+            logger.info(f"Scanning on {_scanner.server_type} media server...")
+            if _scanner.isfile_based_scanning:
+                for _f in file_based_queue:
+                    _scanner.scan_directory(_f)
+                    logger.warning(f"{_f}")
+            else:
+                for _p in path_based_queue:
+                    _scanner.scan_directory(_p)
+                    logger.warning(f"{_p}")
         self.pool.clear()
 
 
@@ -148,7 +163,7 @@ def manual_scan(args, config):
     logger.warning(f"Scanning path: {args.scan_path}...")
     scanning_pool.put(args.scan_path)
     scanning_pool.finish_scan()
-    logger.warning(f"Finished scanning path: {args.scan_path}.")
+    logger.warning(f"Finished!")
 
 
 def folder_scan(args, config, db, _folder):
@@ -187,7 +202,7 @@ def folder_scan(args, config, db, _folder):
     else:
         total_minutes = total_seconds / 60
         logger.info(f"Time cost: {total_minutes:.2f} minutes!")
-    logger.warning(f"End of monitoring folders@{t_end.replace(microsecond=0)}!")
+    logger.info(f"End of monitoring folders@{t_end.replace(microsecond=0)}!")
     logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")  # fmt: skip
 
 
