@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}登录{% endblock %}
+{% block content %}
+<h1 class="page-header">登录</h1>
+{% include 'message.html' %}
+<div id="login-form">
+    <form method="post">
+        <label for="username">用户名</label>
+        <input type="text" name="user">
+        <label for="username">密码</label>
+        <input type="password" name="pwd">
+        <input type="submit" value="登录" name="登录">
+        <!-- {{msg}} -->
+    </form>
+</div>
+
+
+{% endblock %}
+
+{% block javascript %}
+<script type="text/javascript">
+    $(document).ready(function () {
+    });
+</script>
+
+{% endblock %}

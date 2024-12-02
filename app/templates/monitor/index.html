@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+{% block title %} 监控列表 {% endblock %}
+{% block sidebar %}
+{% with sidebar_active='index' %}
+{% include'sidebar.html' %}
+{% endwith %}
+{% endblock %}
+
+{% block content %}
+<!-- <h1 class="page-header">监控列表</h1> -->
+<h2>监控列表</h2>
+{% include 'message.html' %}
+<!-- <table id="monitored_folders_table" class="table table-striped table-bordered" cellspacing="0" width="100%"> -->
+<div class="table-responsive">
+    <table id="monitored_folders_table" class="table table-striped">
+        <!-- <thead> -->
+        <thead class="table-light">
+            <tr>
+                <th title="状态：是否启用监听">状态</th>
+                <th title="监控的目录">目录</th>
+                <th title="遍历间隔，单位: m,h,d，分别对于分钟、小时、天">间隔</th>
+                <th title="下一次遍历操作将会发生在“扫描间隔~扫描间隔*(1+间隔偏移)”范围内">偏移</th>
+                <th title="遍历时跳过这些目录">黑名单</th>
+                <th title="下一次运行时间">下次运行</th>
+                <th>
+                    <button type="button" class="btn btn-success btn-xs dt-add" default-interval="{{scheduler_default_interval}}">
+                        <i class="fa fa-plus" aria-hidden="true"></i>
+                    </button>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+
+<!-- 监控添加的模态对话框-->
+<div class="modal fade" tabindex="-1" role="dialog" id="add-modal">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <!-- <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button> -->
+                <h5 class="modal-title">添加监控目录</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-md-6">是否启用</div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="checkbox" id="add-enable-checkbox" checked>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">监控目录</div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="add-folder">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">遍历间隔<span>[单位:m(分),h(时),d(天)]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="add-interval">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">间隔偏移<span>[仅大于0时有效]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="add-offset">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">黑名单<span>[可选，逗号分隔]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="add-blacklist">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">mtime更新策略<span>[仅添加时执行更新]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <!-- <input type="checkbox" id="mtime-update-strategy"> -->
+                            <select class="form-select form-select-sm" aria-label=".form-select-sm example"
+                                id="mtime-update-strategy">
+                                <option selected value="disabled">不更新</option>
+                                <option value="partial">更新缺失的目录mtime</option>
+                                <option value="full">强制更新所有目录的mtime</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="add-modal-save-btn">保存</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<!-- 监控编辑模态对话框-->
+<div class="modal fade" tabindex="-1" role="dialog" id="edit-modal">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑监控目录</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-md-6">是否启用</div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="checkbox" id="edit-enable-checkbox" checked>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">监控目录</div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="edit-folder">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">遍历间隔<span>[单位:m(分),h(时),d(天)]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="edit-interval">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">间隔偏移<span>[仅大于0时有效]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="edit-offset">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">黑名单<span>[可选，逗号分隔]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="edit-blacklist">
+                        </div>
+                    </div>
+                    <!-- <div class="row">
+                        <div class="col-md-6">mtime更新策略<span>[仅添加时执行更新]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <select class="form-select form-select-sm" aria-label=".form-select-sm example"
+                                id="files-mtime-update-strategy">
+                                <option selected value="disabled">不更新</option>
+                                <option value="partial">更新缺失的目录mtime</option>
+                                <option value="full">强制更新所有目录的mtime</option>
+                            </select>
+                        </div>
+                    </div> -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="edit-modal-save-btn">保存</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+
+
+{% endblock %}
+
+{% block javascript %}
+<script type="text/javascript">
+    $(document).ready(function () {
+        //Only needed for the filename of export files.
+        //Normally set in the title tag of your page.
+        // document.title='Simple DataTable';
+        // DataTable initialisation
+        // Remove the defaults
+        DataTable.defaults.layout = {
+            topStart: null,
+            topEnd: null,
+            bottomStart: null,
+            bottomEnd: null
+        };
+        $('#monitored_folders_table').DataTable(
+            {
+                // "dom": '<"dt-buttons"Bf><"clear">lirtp',
+                /*"layout": {
+                    topEnd: "search",
+                    topStart: "info",
+                },*/
+                // "info": false,
+                // "searching": false,
+                "paging": false,
+                "autoWidth": false,
+                "columnDefs": [
+                    { "targets": 0 },
+                    { "width": "15em", "targets": 1 },
+                    { "targets": 2, "orderable": false },
+                    { "targets": 3, "orderable": false },
+                    { "width": "10em", "targets": 4, "orderable": false },
+                    { "targets": 5, "orderable": false },
+                    { "targets": 6, "orderable": false },
+                ],
+                "order": [[0, "asc"], [1, "asc"]],
+                "fixedColumns": true,
+            }
+        );
+        // 字符串翻转
+        function reverseString(str) {
+            var newString = "";
+            for (var i = str.length - 1; i >= 0; i--) {
+                _char = '';
+                switch (str[i]) {
+                    case "(":
+                        _char = ")";
+                        break;
+                    case ")":
+                        _char = "(";
+                        break;
+                    case "[":
+                        _char = "]";
+                        break;
+                    case "]":
+                        _char = "[";
+                        break;
+                    case "{":
+                        _char = "}";
+                        break;
+                    case "}":
+                        _char = "{";
+                        break;
+                    case "<":
+                        _char = ">";
+                        break;
+                    case ">":
+                        _char = "<";
+                        break;
+                    case "（":
+                        _char = "）";
+                        break;
+                    case "）":
+                        _char = "（";
+                        break;
+                    case "【":
+                        _char = "】";
+                        break;
+                    case "】":
+                        _char = "【";
+                        break;
+                    case "《":
+                        _char = "》";
+                        break;
+                    case "》":
+                        _char = "《";
+                        break;
+                    case "‘":
+                        _char = "’";
+                        break;
+                    case "’":
+                        _char = "‘";
+                        break;
+                    case "“":
+                        _char = "”";
+                        break;
+                    case "”":
+                        _char = "“";
+                        break;
+                    default:
+                        _char = str[i];
+                };
+                newString += _char;
+            }
+            return newString;
+        }
+
+        // 表格刷新
+        function table_refresh() {
+            $.ajax({
+                type: 'GET',
+                url: '/monitor/list/',
+                timeout: 10000,
+                success: function (data) {
+                    var dataTable = $('#monitored_folders_table').DataTable();
+                    // console.log(data);
+                    dataTable.rows().remove().draw(); //清空表格  
+                    data.forEach(element => {
+                        folder_name = '<span style="visibility: hidden; display: none;">' + element.sort_index + '</span><span data-name="' + element.name + '">' + reverseString(element.name) + '</span>';
+                        blacklist = '<span data-name="' + element.blacklist + '">' + reverseString(element.blacklist) + '</span>'
+                        dataTable.row.add(
+                            [
+                                '<input type="checkbox" name="folder-monitor-enable" class="folder-monitor-status" ' + 'data-name="' + element.name + '" ' + (element.enabled ? 'checked>' : '>' + '<span style="visibility: hidden; display: none;"">' + (element.enable ? '1' : '0') + '</span>'),
+                                folder_name,
+                                element.interval,
+                                element.offset,
+                                blacklist,
+                                element.next_run_time,
+                                '<div class="button-group">\
+                                <button title="编辑" type="button" class="btn btn-primary btn-xs dt-edit" data-name="' + element.name + '"><i class="fa fa-pencil" aria-hidden="true"></i></button> \
+                                <button title="删除" type="button" class="btn btn-danger btn-xs dt-delete" data-name="' + element.name + '"><i class="fa fa-trash" aria-hidden="true"></i></button> \
+                                <button title="立即扫描" type="button" class="btn btn-info btn-xs dt-scan" data-name="' + element.name + '"><i class="fa fa-repeat" aria-hidden="true"></i></span></button> \
+                                </div>'
+                            ]
+                        );
+                    });
+                    dataTable.draw();
+                    // 重新添加按钮监听事件
+                    // 编辑按钮
+                    $('.dt-edit').each(function () {
+                        $(this).on('click', function (evt) {
+                            $this = $(this);
+                            var dtRow = $this.parents('tr');
+                            var enabled = dtRow[0].childNodes[0].firstChild.checked;
+                            //var folder = dtRow[0].childNodes[1].innerText
+                            var folder = dtRow[0].childNodes[1].childNodes[1].getAttribute('data-name');
+                            var interval = dtRow[0].childNodes[2].innerText;
+                            var offset = dtRow[0].childNodes[3].innerText;
+                            var blacklist = dtRow[0].childNodes[4].innerText;
+                            $('#edit-modal-save-btn').attr('data-name', folder);
+
+                            $('#edit-enable-checkbox').attr('checked', enabled);
+                            $('#edit-folder').val(folder);      // 给id 为 edit-age1 设置 列表中的 值  ，即模态对话框中设置值
+                            $('#edit-interval').val(interval);
+                            $('#edit-offset').val(offset);
+                            $('#edit-blacklist').val(blacklist);
+                            $('#edit-modal').modal('show');
+                        });
+                    });
+                    // 删除按钮
+                    $('.dt-delete').each(function () {
+                        $(this).on('click', function (evt) {
+                            $this = $(this);
+                            var folder = $this.attr('data-name');
+                            if (confirm("确定删除[" + folder + "]目录的监控设置吗?")) {
+                                $.ajax({
+                                    type: "DELETE",
+                                    url: '/monitor/delete/',
+                                    data: JSON.stringify({ folder: folder }),
+                                    contentType: 'application/json;charset=UTF-8',
+                                    success: function (result) {
+                                        // console.log("删除成功");
+                                        alert(result.message);
+                                        if (result.status == "success") {
+                                            table_refresh();
+                                        }
+                                    }
+                                });
+                            }
+
+                        });
+                    });
+                    // 立即扫描按钮事件
+                    function scan_folder_unconditionally(folder) {
+                        $.ajax({
+                            type: "POST",
+                            // url: '/scan_monitored_folder_now',
+                            url: '/monitor/scan_folder_unconditionally/',
+                            data: JSON.stringify({ folder: folder }),
+                            contentType: 'application/json;charset=UTF-8',
+                            success: function (result) {
+                                alert(result.message);
+                                if (result.status == 'success') {
+                                    // table_refresh();
+                                }
+                            },
+                            // error: function () {
+                            // alert("扫描失败");
+                            // }
+                        });
+                    }
+                    $('.dt-scan').each(function () {
+                        $(this).on('click', function (evt) {
+                            $this = $(this);
+                            var folder = $this.attr('data-name');
+                            if (confirm("立即触发监控目录[" + folder + "]的遍历?")) {
+                                $.ajax({
+                                    type: "POST",
+                                    url: '/monitor/scan/',
+                                    // url: '/scan_folder',
+                                    data: JSON.stringify({ folder: folder }),
+                                    contentType: 'application/json;charset=UTF-8',
+                                    success: function (result) {
+                                        alert(result.message);
+                                        if (result.status == 'success') {
+                                            table_refresh();
+                                        } else {
+                                            if (confirm("是否直接扫描[" + folder + "]目录?")) {
+                                                scan_folder_unconditionally(folder);
+                                            }
+                                        }
+                                    },
+                                    // error: function () {
+                                    // alert("扫描失败");
+                                    // }
+                                });
+
+                            }
+                        });
+                    });
+                    // checkbox 监听事件
+                    $('.folder-monitor-status').each(function () {
+                        $(this).on('change', function (evt) {
+                            $this = $(this);
+                            var folder = $this.attr('data-name');
+                            var enabled = $this.is(':checked');
+                            console.log(folder + " enabled: " + enabled);
+                            mydata = {
+                                "folder": folder,
+                                "enabled": enabled,
+                            }
+                            $.ajax({
+                                type: "PUT",
+                                url: '/monitor/edit_status/',
+                                data: JSON.stringify(mydata),
+                                contentType: 'application/json;charset=UTF-8',
+                                success: function (result) {
+                                    alert(result.message);
+                                    if (result.status == "success") {
+                                        table_refresh();
+                                    }
+                                },
+                            });
+                        });
+                    });
+                },
+            }).done(function (response) {
+                if (response.success) {
+                }
+            });
+
+        };
+        // 表格刷新END
+        //添加监控目录按钮
+        $('.dt-add').each(function () {
+            $(this).on('click', function (evt) {
+                var default_interval = $(this).attr('default-interval');
+                $('#add-enable-checkbox').attr('checked', true)
+                $('#add-interval').val(default_interval)
+                $('#add-offset').val("0.1")
+                $('#mtime-update-strategy').val("disabled")
+                $('#add-modal').modal('show');    // 显示模态对话框
+            });
+
+        });
+        //添加监控目录的模态对话框保存按钮
+        $('#add-modal-save-btn').on('click', function () {     // 模态对话框中修改值后点击save的事件
+            var enabled = $('#add-enable-checkbox').is(':checked');
+            var folder = $('#add-folder').val().trim();
+            var interval = $('#add-interval').val().trim();
+            var offset = $('#add-offset').val().trim();
+            var blacklist = $('#add-blacklist').val().trim();
+            var mtime_update_strategy = $('#-mtime-update-strategy option:selected').val().trim();
+            mydata = {
+                "enabled": enabled,
+                "folder": folder,
+                "interval": interval,
+                "offset": offset,
+                "blacklist": blacklist,
+                "mtime_update_strategy": mtime_update_strategy,
+            }
+            $.ajax({
+                type: "POST",
+                url: '/monitor/add/',
+                data: JSON.stringify(mydata),
+                contentType: 'application/json;charset=UTF-8',
+                success: function (result) {
+                    alert(result.message);
+                    if (result.status == "success") {
+                        table_refresh();
+                    }
+                    $("#add-modal").modal('hide');   // 隐藏模态对话框
+                }
+                // complete: function () {
+                // $("#add-modal").modal('hide');   // 隐藏模态对话框
+                // }
+            });
+        });
+        //编辑监控目录的模态对话框保存按钮
+        $('#edit-modal-save-btn').on('click', function () {     // 模态对话框中修改值后点击save的事件
+            var folder = $(this).attr('data-name').trim();
+            var enabled = $('#edit-enable-checkbox').is(':checked');
+            var new_folder = $('#edit-folder').val().trim();
+            var interval = $('#edit-interval').val().trim();
+            var offset = $('#edit-offset').val().trim();
+            var blacklist = $('#edit-blacklist').val().trim();
+            // var overwrite_db = $('#edit-overwritedb-checkbox').is(':checked');
+            var mtime_update_strategy = "disabled";
+
+            mydata = {
+                "enabled": enabled,
+                "folder": folder,
+                "new_folder": new_folder,
+                "interval": interval,
+                "offset": offset,
+                "blacklist": blacklist,
+                "mtime_update_strategy": mtime_update_strategy,
+            }
+            $.ajax({
+                type: "PUT",
+                url: '/monitor/edit/',
+                data: JSON.stringify(mydata),
+                contentType: 'application/json;charset=UTF-8',
+                success: function (result) {
+                    alert(result.message);
+                    if (result.status == "success") {
+                        table_refresh();
+                    }
+                    $("#edit-modal").modal('hide');   // 隐藏模态对话框
+                },
+            });
+        });
+        table_refresh();
+    });
+</script>
+
+{% endblock %}

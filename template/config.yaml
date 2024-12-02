@@ -1,27 +1,59 @@
-cd2:
-  host: http://192.168.xxx.xxx:19798
-  user: your@mail.com
-  password: your-password
-servers: ['plex','emby']
-plex:
-  host: http://192.168.xxx.xxxx:32400
-  token: your-plex-token
-  isfile_based_scanning: true # 基于局部文件的扫描，而不是扫描变更文件的父目录；否则扫描变更文件的父目录。如果变更的是目录，则扫描变更目录。
-  path_mapping: # cd2中的路径映射到plex中
-    enable: true
-    rules:
-      - from: /115/Public
-        to: /share/SSD1T/03cd2/115
-emby:
-  host: https://your.emby.com
-  api_key: your-emby-api-key
-  isfile_based_scanning: true
-  path_mapping: # cd2中的路径映射到emby中
-    enable: true
-    rules:
-      - from: /115/Public
-        to: /mnt/user/CloudDrive/115
-MONITOR_FOLDER:
-  /115/Public/电视/国产动漫剧:
-    blacklist: ['/115/Public/tmp'] # 黑名单，不会被扫描
-    overwrite_db: false #构建数据库时，对数据库中已存在的时间采用覆盖模式（防止数据库中的时间戳太旧）
+flask:
+    # webui 监听地址和端口
+    host: 0.0.0.0
+    port: 2024
+    secret_key: "secret_key" # 无需修改
+    # 登录页面的用户名和密码
+    username: "admin"
+    password: "admin"
+    # 调度器的配置，以下参数均无需修改
+    scheduler:
+        timezone: "Asia/Shanghai" # 时区
+        api_enabled: true # 是否启用API
+        default_interval: 1d # 默认执行间隔，单位m/h/d，分别对应分钟/小时/天，更多请参考https://github.com/wroberts/pytimeparse 程序暂未调用此参数
+databases:
+    # 程序所需要的数据库配置,如果你不懂参数的含义，请不要修改
+    redis:
+        host: 127.0.0.1
+        port: 6379
+        username: "default"
+        password: "helloworld"
+        db: 0
+        socket_timeout: 10 # 连接超时时间
+        pool_enabled: true # 是否启用连接池
+        # celery配置
+        celery_broker_db: 1
+        celery_result_db: 2
+    sqlite:
+        path: "app.sqlite" # /config路径下的sqlite数据库文件路径
+        pool_timeout: 10 # 连接超时时间
+        pool_size: 5 # 连接池大小
+
+clouddrive2:
+    # clouddrive2配置
+    host: http://xxx.xxx.xxx.xxx:19798
+    username: xxx@mail.com
+    password: xxxxx
+media_servers:
+    # 媒体服务器配置
+    plex:
+        enabled: true # 若不使用plex，则设置为false
+        host: http://xxx.xxxx.xxx.xxx:32400
+        token: plex_token_here
+        isfile_based_scanning: true # 基于文件的扫描，目前观望此参数是否应弃用
+        path_mapping:
+            # 从clouddrive2的路径映射到媒体服务器内部的路径
+            enabled: true # 若不使用路径映射，则设置为false
+            rules:
+              - from: /115/Public
+                to: /share/SSD1T/03cd2/115
+    emby:
+        enabled: true # 若不使用emby，则设置为false
+        host: https://emby.example.com
+        api_key: emby_api_key_here
+        isfile_based_scanning: true
+        path_mapping:
+            enabled: true
+            rules:
+              - from: /115/Public
+                to: /mnt/user/CloudDrive/115

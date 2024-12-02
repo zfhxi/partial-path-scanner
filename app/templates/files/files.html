@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}目录浏览{% endblock %}
+{% block sidebar %}
+{% with sidebar_active='files' %}
+{% include'sidebar.html' %}
+{% endwith %}
+{% endblock %}
+
+
+{% block content %}
+<h2>目录浏览</h2>
+{% include 'message.html' %}
+<div id="path-nav">
+    <div id="root-path">
+        {% for unit,link in path_unit_links %}
+        /<a href="{{link}}">{{unit}}</a>
+        {% endfor %}
+    </div>
+</div>
+<div class="table-responsive">
+    <table id="listdir_table" class="table table-striped">
+        <!-- <thead> -->
+        <thead class="table-light">
+            <tr>
+                <th>名称</th>
+                <th>修改时间</th>
+                <th>数据库mtime</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file_meta in files %}
+            <tr>
+                <td>
+                    <span>{{ file_meta['sort_index'] }}&nbsp;</span>
+                    {% if file_meta['isdir'] != True %}
+                    <i class="fa fa-file-o" aria-hidden="true"></i> {{ file_meta['name'] }}
+                    {% else %}
+                    <a href="{{  file_meta['link'] }}">
+                        <i class="fa fa-folder" aria-hidden="true"></i> {{ file_meta['name'] }}
+                    </a>
+                    {% endif %}
+                </td>
+                <td>{{ file_meta['mtime'] }}</td>
+                <td>{{ file_meta['dbtime'] }}</td>
+                <td>{{ '-' if file_meta['need_update'] else '已更新' }}</td>
+                <td>
+                    {% if req_path!= '/' %}
+                    <div class="file-meta button-group">
+                        <button title="立即扫描" type="button" class="btn btn-info btn-xs files-dt-scan"
+                            data-name="{{file_meta['path']}}"><i class="fa fa-repeat" aria-hidden="true"></i></button>
+                        {% if file_meta['isdir'] == True %}
+                        <button title="添加为监控目录" type="button" data-func="files-dt-add"
+                            class="btn btn-success btn-xs files-dt-add" data-name="{{file_meta['path']}}" default-interval="{{scheduler_default_interval}}"><i
+                                class="fa fa-plus" aria-hidden="true"></i></button>
+                        <button title="更新mtime" type="button" data-func="files-dt-update-mtime"
+                            class="btn btn-success btn-xs files-dt-update-mtime" data-name="{{file_meta['path']}}"><i
+                                class="fa fa-database" aria-hidden="true"></i></button>
+                        {% else %}
+                        <div class="btn-xs" style="opacity: 0;" disabled><i class="fa fa-plus" aria-hidden="true"></i>
+                        </div>
+                        <div class="btn-xs" style="opacity: 0;" disabled><i class="fa fa-plus" aria-hidden="true"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+
+
+
+        </tbody>
+    </table>
+</div>
+
+<!-- 监控添加的模态对话框-->
+<div class="modal fade" tabindex="-1" role="dialog" id="files-add-modal">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加监控目录</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-md-6">是否启用</div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="checkbox" id="files-add-enable-checkbox" checked>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">监控目录</div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="files-add-folder">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">遍历间隔<span>[单位:m(分),h(时),d(天)]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="files-add-interval">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">间隔偏移<span>[仅大于0时有效]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="files-add-offset">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">黑名单<span>[可选，逗号分隔]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <input type="text" id="files-add-blacklist">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">mtime更新策略<span>[仅添加时执行更新]</span></div>
+                        <div class="col-md-6 ms-auto">
+                            <!-- <input type="checkbox" id="files-mtime-update-strategy"> -->
+                            <select class="form-select form-select-sm" aria-label=".form-select-sm example"
+                                id="files-mtime-update-strategy">
+                                <option selected value="disabled">不更新</option>
+                                <option value="partial">更新缺失的目录mtime</option>
+                                <option value="full">强制更新所有目录的mtime</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="files-add-modal-save-btn">保存</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+<!-- 监控添加的模态对话框-->
+<div class="modal fade" tabindex="-1" role="dialog" id="files-mtime-update">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">更新数据库中的mtime</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-md-6">目录</div>
+                        <div class="col-md-6 ms-auto">
+                            <input class="input-text-disabled" type="text" id="files-mtime-update-folder" disabled>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">更新策略</div>
+                        <div class="col-md-6 ms-auto">
+                            <select class="form-select form-select-sm" aria-label=".form-select-sm example"
+                                id="files-mtime-update-strategyv2">
+                                <option selected value="partial">更新缺失的目录mtime</option>
+                                <option value="full">强制更新所有目录的mtime</option>
+                                <option value="reset">清空该目录下所有目录的mtime</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="files-mtime-update-save-btn">保存</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+
+
+
+{% endblock %}
+
+{% block javascript %}
+<script type="text/javascript">
+    $(document).ready(function () {
+        // Remove the defaults
+        DataTable.defaults.layout = {
+            topStart: null,
+            topEnd: null,
+            bottomStart: null,
+            bottomEnd: null
+        };
+        $('#listdir_table').DataTable({
+            'info': false,
+            // "dom": '<"dt-buttons"Bf><"clear">lirtp',
+            "layout": {
+                topEnd: 'search',
+                topStart: function () {
+                    let toolbar = document.createElement('div');
+                    toolbar.innerHTML = '目录[{{counts[0]}}]，文件[{{counts[1]}}]，总计[{{counts[2]}}]';
+                    return toolbar;
+                },
+            },
+            // "searching": false,
+            "paging": false,
+            "autoWidth": true,
+            "columnDefs": [
+                { "width":"15em","targets": 0 },
+                { "width": "6em", "targets": 1 },
+                { "width": "6em", "targets": 2 },
+                { "width": "4em", "targets": 3 },
+                { "width": "10%", "targets": 4, "orderable": false }
+            ]
+        });
+        var ROOT_PATH = '/'
+        // // 获取目录列表的函数
+        // function listdir(path) {
+        //     var resultObj = false;
+        //     $.ajax({
+        //         type: "POST",
+        //         url: '/listdir',
+        //         async: false,
+        //         data: JSON.stringify({ path: path }),
+        //         contentType: 'application/json;charset=UTF-8',
+        //         success: function (result) {
+        //             // console.log(result);
+        //             resultObj = result;
+        //         },
+        //         error: function () {
+        //             alert("获取目录列表失败");
+        //             resultObj = false;
+        //         }
+        //     });
+        //     return resultObj;
+        // };
+        // // 初始化目录列表
+
+        // function listdir_table_refresh() {
+        //     var listdirObj = listdir(ROOT_PATH);
+        //     /* continue */
+        // }
+
+        //添加按钮监听事件
+        // 添加按钮
+        $('.files-dt-add').each(function () {
+            $(this).on('click', function (evt) {
+                var folder_id = $(this).attr('data-name').trim();
+                var default_interval=$(this).attr('default-interval');
+                $('#files-add-enable-checkbox').attr('checked', true)
+                $('#files-add-folder').val(folder_id)
+                $('#files-add-interval').val(default_interval)
+                $('#files-add-offset').val("0.1")
+                $('#files-mtime-update-strategy').val("disabled")
+                $('#files-add-modal').modal('show');    // 显示模态对话框
+            });
+        });
+        // mtime更新按钮
+        $('.files-dt-update-mtime').each(function () {
+            $(this).on('click', function (evt) {
+                var folder_id = $(this).attr('data-name').trim();
+                $('#files-mtime-update-folder').val(folder_id)
+                $('#files-mtime-update-strategyv2').val("partial")
+                $('#files-mtime-update').modal('show');    // 显示模态对话框
+            });
+        });
+        // 扫描按钮
+        $('.files-dt-scan').each(function () {
+            $(this).on('click', function (evt) {
+                $this = $(this);
+                var folder = $this.attr('data-name');
+                if (confirm("立即扫描[" + folder + "]目录?")) {
+                    $.ajax({
+                        type: "POST",
+                        url: '/monitor/scan_folder_unconditionally/',
+                        data: JSON.stringify({ folder: folder }),
+                        contentType: 'application/json;charset=UTF-8',
+                        success: function (result) {
+                            alert(result.message)
+                        },
+                        // error: function () {
+                        // alert("扫描失败");
+                        // }
+
+                    });
+                }
+
+            });
+        });
+
+        //添加监控目录的模态对话框保存按钮
+        $('#files-add-modal-save-btn').on('click', function () {     // 模态对话框中修改值后点击save的事件
+            var enabled = $('#files-add-enable-checkbox').is(':checked');
+            var folder = $('#files-add-folder').val().trim();
+            var interval = $('#files-add-interval').val().trim();
+            var offset = $('#files-add-offset').val().trim();
+            var blacklist = $('#files-add-blacklist').val().trim();
+            var mtime_update_strategy = $('#files-mtime-update-strategy option:selected').val().trim();
+            mydata = {
+                "enabled": enabled,
+                "folder": folder,
+                "interval": interval,
+                "offset": offset,
+                "blacklist": blacklist,
+                "mtime_update_strategy": mtime_update_strategy,
+            }
+            // console.log(mydata);
+            $.ajax({
+                type: "POST",
+                url: '/monitor/add/',
+                data: JSON.stringify(mydata),
+                contentType: 'application/json;charset=UTF-8',
+                success: function (result) {
+                    alert(result.message);
+                    $("#files-add-modal").modal('hide');   // 隐藏模态对话框
+                },
+                // complete: function () {
+                // }
+            });
+        });
+        //添加mtime更新的模态对话框保存按钮
+        $('#files-mtime-update-save-btn').on('click', function () {     // 模态对话框中修改值后点击save的事件
+            var folder = $('#files-mtime-update-folder').val().trim();
+            var mtime_update_strategy = $('#files-mtime-update-strategyv2 option:selected').val().trim();
+            mydata = {
+                "folder": folder,
+                "mtime_update_strategy": mtime_update_strategy,
+            }
+            // console.log(mydata);
+            $.ajax({
+                type: "PUT",
+                url: '/files/update_mtime/',
+                data: JSON.stringify(mydata),
+                contentType: 'application/json;charset=UTF-8',
+                success: function (result) {
+                    alert(result.message);
+                    $("#files-mtime-update").modal('hide');   // 隐藏模态对话框
+                },
+                // complete: function () {
+                // }
+            });
+        });
+    });
+
+
+</script>
+
+{% endblock %}

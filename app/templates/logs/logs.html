@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}日志{% endblock %}
+{% block sidebar %}
+    {% with sidebar_active='logs' %}
+        {% include'sidebar.html' %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+<h2>日志</h2>
+<div class="btn-group" role="group" aria-label="Basic mixed styles example">
+    <button type="button" id="btn-switch-run" class="btn btn-success">运行中</button>
+    <button type="button" id="btn-auto-scroll" onclick="toggle_scroll()" class="btn btn-info">滚动开启</button>
+    <button type="button" id="btn-download-log" class="btn btn-secondary"><a href="/logs/download/" download="app.log" style="color:white; text-decoration:none;">下载日志</a></button>
+</div>
+<div id="log-result"></div>
+{% endblock %}
+
+{% block javascript %}
+<script type="text/javascript">
+    $(document).ready(function () {
+        var autoscroll = true;
+        toggle_scroll = function () {
+            if (autoscroll) autoscroll = false;
+            else autoscroll = true;
+        };
+        var position = 0;
+        var REFRESH_MSEC = 1000;
+
+        get_log = function () {
+            console.log("position is: "+position)
+            $.ajax({
+                type: "GET",
+                url: "/logs/get/",
+                data: { position: position },
+                dataType: "text",
+                success: function (result) {
+                    var resultObj = JSON.parse(result);
+                    //var html = document.getElementById("div_id").innerHTML;
+                    var resultEle = $("#log-result");
+                    var html = resultEle.html();
+                    var htmlShort = html.substr(-50000);
+                    document.getElementById("log-result").innerHTML = htmlShort;
+                    resultEle.append(resultObj.content_text);
+                    position = resultObj.position;
+                    console.log("position: " + position)
+                    if (autoscroll) {
+                        // window.scrollTo(0, document.body.scrollHeight);
+
+                        resultEle.scrollTop(resultEle[0].scrollHeight);
+                        $("#btn-auto-scroll").text("滚动开启");
+                        $("#btn-auto-scroll").removeClass("btn-dark").addClass("btn-info");
+                    } else {
+                        $("#btn-auto-scroll").text("滚动关闭");
+                        $("#btn-auto-scroll").removeClass("btn-info").addClass("btn-dark");
+                    }
+
+                }
+            });
+        };
+        var iid = setInterval(get_log, REFRESH_MSEC);
+        var runStatus = 1;
+        $("#btn-switch-run").on("click", function () {
+            if (runStatus === 1) {
+                $("#btn-switch-run").text("暂停了");
+                $("#btn-switch-run").removeClass("btn-success").addClass("btn-dark");
+                clearInterval(iid);
+                runStatus = 0;
+            } else {
+                $("#btn-switch-run").text("运行中");
+                $("#btn-switch-run").removeClass("btn-dark").addClass("btn-success");
+                iid = setInterval(get_log, REFRESH_MSEC);
+                runStatus = 1;
+
+            }
+        });
+
+    });
+</script>
+
+{% endblock %}

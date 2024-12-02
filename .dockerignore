@@ -1,0 +1,11 @@
+app/*dev.yaml
+app/app.log
+app/app.sqlite
+.git
+.github
+.vscode
+config
+log
+.gitignore
+README.md
+#requirements.txt

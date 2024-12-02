@@ -7,23 +7,9 @@ while true; do
 done &
 
 # copy config file if not exists
-if [ ! -f /config/config.yaml ]; then
-    cp /template/config.yaml /config/config.yaml
+if [ ! -f /app/config/config.yaml ]; then
+    cp /app/template/config.yaml /app/config/config.yaml
 fi
-cp /template/config.yaml /config/config_template.yaml
+cp /app/template/config.yaml /app/config/config_template.yaml
 
-launch(){
-    # Run the Python script on startup
-    touch /app/output.log
-    if [ "${STARTUP_BUILD_DB}" = "true" ] ; then
-        cd /app && python -u main.py --only-db-init true
-    fi
-
-    # Schedule the monitoring task
-    echo -e "\nScheduling the task..."
-    cd /app && python -u main.py
-    crond
-}
-
-launch >> /app/output.log 2>&1 &
-tail -f /app/output.log
+cd /app && /usr/local/bin/supervisord -c /etc/supervisord.conf

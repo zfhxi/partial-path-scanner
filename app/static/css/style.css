@@ -1,0 +1,193 @@
+@import "../font-awesome/4.6.0/css/font-awesome.min.css";
+
+/*-------------------------------*/
+/*           VARIABLES           */
+/*-------------------------------*/
+
+div[aria-hidden="true"] {
+    display: none !important;
+}
+
+.fa {
+    font-size: 12px;
+}
+
+.btn-xs {
+    padding: .25rem .4rem;
+    font-size: .875rem;
+    line-height: .5;
+    border-radius: .2rem;
+}
+
+/* 监控目录表格 文件列表表格 */
+/* #monitored_folders_table {
+    max-width: 1200px;
+} */
+/*表头不换行*/
+#listdir_table thead th,
+#monitored_folders_table thead th {
+    font-size: 13px;
+    word-break: keep-all;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#monitored_folders_table th:nth-child(1),
+#monitored_folders_table td:nth-child(1){
+    width: 1em;
+}
+/* 目录文字溢出隐藏 */
+#monitored_folders_table th:nth-child(2),
+#monitored_folders_table td:nth-child(2),
+#monitored_folders_table th:nth-child(5),
+#monitored_folders_table td:nth-child(5){
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#monitored_folders_table th:nth-child(2),
+#monitored_folders_table td:nth-child(2){
+    max-width: 15em;
+}
+#monitored_folders_table th:nth-child(5),
+#monitored_folders_table td:nth-child(5){
+    max-width: 10em;
+}
+
+#monitored_folders_table td:nth-child(2),
+#monitored_folders_table td:nth-child(5){
+    direction: rtl;
+    unicode-bidi: bidi-override;
+}
+
+/* 操作按钮最大宽度限制 */
+#monitored_folders_table th:nth-child(7),
+#monitored_folders_table td:nth-child(7){
+    max-width: 3em;
+}
+
+
+
+#listdir_table th,
+#listdir_table td,
+#monitored_folders_table th,
+#monitored_folders_table td {
+    text-align: center;
+}
+#monitored_folders_table td:nth-child(1){
+    align-content: center;
+}
+
+
+#listdir_table th:nth-child(1),
+#listdir_table td:nth-child(1),
+#monitored_folders_table th:nth-child(2),
+#monitored_folders_table th:nth-child(5),
+#monitored_folders_table td:nth-child(5),
+#monitored_folders_table td:nth-child(2) {
+    text-align: left;
+    /* max-width: 30vw; */
+}
+
+#listdir_table div.button-group,
+#monitored_folders_table div.button-group {
+    /* width: 100%; */
+    display: flex;
+    justify-content: space-around;
+}
+
+
+
+
+/* mtime模态对话框按钮 */
+
+.input-text-disabled{
+    /* background-color: red; */
+    background-color: transparent;
+    border: none;
+    /* text-decoration: underline; */
+}
+
+/* 日志 */
+div#log-result {
+    /* display: flex; */
+    /* flex-direction: column; */
+    height: 70vh;
+    background-color: #FFFFFF;
+    margin-top: 1em;
+    padding: 5px 30px;
+    overflow-y: scroll;
+    border: #c5c5c5 1px solid;
+}
+
+/* 登录 */
+div#login-form input[type=password],
+div#login-form input[type=text],
+select {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+div#login-form input[type=submit] {
+    width: 100%;
+    background-color: #4CAF50;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+div#login-form input[type=submit]:hover {
+    background-color: #45a049;
+}
+
+div#login-form div {
+    border-radius: 5px;
+    background-color: #f2f2f2;
+    padding: 20px;
+}
+
+/* 模态对话框 */
+.modal-dialog .row {
+    margin: 5px 0;
+}
+
+.modal-dialog .row input[type=checkbox] {
+    height: 100%;
+}
+
+.modal-dialog .row div span {
+    font-size: 0.6em;
+}
+/* sidebar */
+.nav-item a{
+    color: #7e7e7e;
+}
+.nav-item a.selected{
+    color:#005BC6;
+}
+div.table-responsive{
+    max-height: 80vh;
+    overflow: auto;
+}
+/* 响应式 */
+@media screen and (min-width: 1024px) {
+    .custom-content {
+        margin-left: 200px;
+        max-width: 1200px;
+    }
+    div#path-nav{
+        margin: 5px 0;
+    }
+    div#path-nav div{
+        margin: 5px 0;
+    }
+}

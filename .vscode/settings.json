@@ -2,4 +2,7 @@
     "[python]": {
         "editor.formatOnSave": true,
     },
+    "[yaml]": {
+        "editor.tabSize": 4
+    },
 }
