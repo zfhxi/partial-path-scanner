@@ -10,6 +10,7 @@
 <h2>日志</h2>
 <div class="btn-group" role="group" aria-label="Basic mixed styles example">
     <button type="button" id="btn-refresh-log" class="btn btn-success">刷新日志</button>
+    <button type="button" id="btn-auto-scroll" onclick="toggle_scroll()" class="btn btn-info">滚动开启</button>
     <button type="button" id="btn-download-log" class="btn btn-secondary"><a href="/logs/download/" download="app.log"
             style="color:white; text-decoration:none;">下载日志</a></button>
 </div>
@@ -21,6 +22,17 @@
 <script type="text/javascript">
     // 参考 https://github.com/shenxianmq/Auto_Symlink
     var autoScroll = true
+    function toggle_scroll() {
+        if (autoScroll) {
+            autoScroll = false;
+            $("#btn-auto-scroll").text("滚动关闭");
+            $("#btn-auto-scroll").removeClass("btn-info").addClass("btn-dark");
+        } else {
+            autoScroll = true;
+            $("#btn-auto-scroll").text("滚动开启");
+            $("#btn-auto-scroll").removeClass("btn-dark").addClass("btn-info");
+        }
+    }
 
     function scrollToBottom() {
         $('#log-result').scrollTop($('#log-result')[0].scrollHeight);
@@ -37,14 +49,15 @@
         handleInput()
     }, 1000); // 每隔1000毫秒执行一次
 
+    /*
     // 添加鼠标悬停事件监听器
     $('#log-result').mouseover(function () {
-        autoScroll = false
+        if (autoScroll) toggle_scroll();
     });
     // 添加鼠标移开事件监听器
     $('#log-result').mouseout(function () {
-        autoScroll = true
-    });
+        if (!autoScroll) toggle_scroll();
+    });*/
     // 连接到 SSE 日志流
     function connectToLogStream() {
         // 创建一个新的 EventSource 对象来连接到服务器端的 SSE 端点
@@ -54,7 +67,7 @@
         };
         // 当收到消息时，更新日志内容
         eventSource.onmessage = function (event) {
-            if(event.data != 'null')
+            if (event.data != 'null')
                 $('#log-result').html($('#log-result').html() + event.data)
         };
 

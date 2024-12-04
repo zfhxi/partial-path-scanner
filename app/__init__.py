@@ -46,6 +46,11 @@ def create_app():
 
     # 跨域
     CORS(flask_app)
+
+    # 打印程序启动提示信息
+    logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    logger.warning("程序启动中......")
+    logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     return flask_app, celery_app
 
 

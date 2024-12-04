@@ -45,7 +45,7 @@ class FlaskCloudDrive2Wrapper(object):
         self.connect_fs()
         global cd2connect_func
         cd2connect_func = partial(self.connect_fs)
-        print(f"cd2connect_func: {cd2connect_func}")
+        # print(f"cd2connect_func: {cd2connect_func}")
         if not hasattr(app, 'extensions'):
             app.extensions = {}
         app.extensions['clouddrive2'] = self
