@@ -1,67 +1,72 @@
-import os
-from flask import render_template, Blueprint, request, jsonify, send_file, current_app
+import os, time
+from flask import render_template, Blueprint, request, jsonify, send_file, current_app, Response, stream_with_context
 from flask_login import login_required
 from app.utils import getLogger
 
 logger = getLogger(__name__)
-
 logs_bp = Blueprint('logs_bp', __name__, url_prefix='/logs')
 
 
 @logs_bp.route('/', methods=['GET', 'POST'])
 @login_required
 def logs_index():
-
     return render_template('/logs/logs.html')
 
 
-# 参考：https://www.cnblogs.com/ydf0509/p/11032904.html
+def _process_line(line):
+    line = line.strip()
+    if 'DEBUG' in line:
+        color = '#00FF00'
+    elif 'INFO' in line:
+        color = '#000'
+    elif 'WARNING' in line:
+        color = '#c1bf78'
+    elif 'ERROR' in line:
+        color = '#FF0000'
+    elif 'CRITICAL' in line:
+        color = '#FF0033'
+    else:
+        color = ''
+    return f'<p class="log-line" style="color:{color}"> {line} </p>'
+
+
+global_line_number = 0
+
+
 @logs_bp.route("/get/", methods=['POST', 'GET'])
 @login_required
 def logs_get():
-    # fullname = os.path.dirname(os.path.abspath(__file__)) + '/app.log'
+    global global_line_number
     fullname = os.path.join(current_app.config['LOG_DIR'], 'app.log')
-    position = int(request.args.get('position'))
-    # current_app.logger.debug(position)
+    if request.method == 'POST':
+        global_line_number = 0
+        context = ''
+        with open(fullname) as f:
+            lines = f.readlines()
+            for line in lines:
+                global_line_number += 1
+                context += _process_line(line) + '\n'
+        return jsonify({"data": context, "position": str(global_line_number)})
 
-    with open(fullname, 'rb') as f:
-        try:
-            f.seek(position, 0)
-        except Exception as e:
-            logger.warning(f"读取错误: {e}")
-            f.seek(0, 0)
-        lines = f.readlines()
-        content_text = ''
-        for line in lines:
-            try:
-                line = line.strip().decode()
-            except Exception as e:
-                logger.warning(f"decode错误: {e}")
-                line = line.strip()
-            if 'DEBUG' in line:
-                color = '#00FF00'
-            elif 'INFO' in line:
-                color = '#000'
-            elif 'WARNING' in line:
-                color = '#c1bf78'
-            elif 'ERROR' in line:
-                color = '#FF0000'
-            elif 'CRITICAL' in line:
-                color = '#FF0033'
-            else:
-                color = ''
-            content_text += f'<p class="log-line" style="color:{color}"> {line} </p>'
+    else:
 
-        # content_text = f.read().decode()
-        # # nb_print([content_text])
-        # content_text = content_text.replace('\n', '<br>')
-        # # nb_print(content_text)
-        position_new = f.tell()
-        # current_app.logger.debug(position_new)
-        # nb_print(content_text)
-        print(f"position_new: {position_new}")
+        def generate():
+            global global_line_number
+            with open(fullname, 'r') as f:
+                lines = f.readlines()[global_line_number:]
+                while True:
+                    if len(lines) > 0:
+                        for line in lines:
+                            global_line_number += 1
+                            context = _process_line(line)
+                            yield f"data:{context}\n\n"
+                            time.sleep(0.5)
+                    else:
+                        yield f"data:null\n\n"
+                        time.sleep(3)
+                    lines = f.readlines()
 
-        return jsonify({"content_text": content_text, "position": str(position_new)})
+        return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 
 @logs_bp.route('/download/', methods=['GET', 'POST'])

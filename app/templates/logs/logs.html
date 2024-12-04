@@ -1,80 +1,110 @@
 {% extends "base.html" %}
 {% block title %}日志{% endblock %}
 {% block sidebar %}
-    {% with sidebar_active='logs' %}
-        {% include'sidebar.html' %}
-    {% endwith %}
+{% with sidebar_active='logs' %}
+{% include'sidebar.html' %}
+{% endwith %}
 {% endblock %}
 
 {% block content %}
 <h2>日志</h2>
 <div class="btn-group" role="group" aria-label="Basic mixed styles example">
-    <button type="button" id="btn-switch-run" class="btn btn-success">运行中</button>
-    <button type="button" id="btn-auto-scroll" onclick="toggle_scroll()" class="btn btn-info">滚动开启</button>
-    <button type="button" id="btn-download-log" class="btn btn-secondary"><a href="/logs/download/" download="app.log" style="color:white; text-decoration:none;">下载日志</a></button>
+    <button type="button" id="btn-refresh-log" class="btn btn-success">刷新日志</button>
+    <button type="button" id="btn-download-log" class="btn btn-secondary"><a href="/logs/download/" download="app.log"
+            style="color:white; text-decoration:none;">下载日志</a></button>
 </div>
 <div id="log-result"></div>
 {% endblock %}
 
 {% block javascript %}
+
 <script type="text/javascript">
-    $(document).ready(function () {
-        var autoscroll = true;
-        toggle_scroll = function () {
-            if (autoscroll) autoscroll = false;
-            else autoscroll = true;
+    // 参考 https://github.com/shenxianmq/Auto_Symlink
+    var autoScroll = true
+
+    function scrollToBottom() {
+        $('#log-result').scrollTop($('#log-result')[0].scrollHeight);
+    }
+
+    function handleInput() {
+        if (autoScroll) {
+            // 如果在底部且最后一行不是空行，则滚动到底部
+            scrollToBottom();
+        }
+    }
+    setInterval(function () {
+        // 执行的代码
+        handleInput()
+    }, 1000); // 每隔1000毫秒执行一次
+
+    // 添加鼠标悬停事件监听器
+    $('#log-result').mouseover(function () {
+        autoScroll = false
+    });
+    // 添加鼠标移开事件监听器
+    $('#log-result').mouseout(function () {
+        autoScroll = true
+    });
+    // 连接到 SSE 日志流
+    function connectToLogStream() {
+        // 创建一个新的 EventSource 对象来连接到服务器端的 SSE 端点
+        eventSource = new EventSource('/logs/get');
+        eventSource.onopen = function () {
+            console.log('Server-Sent-Event连接成功！')
         };
-        var position = 0;
-        var REFRESH_MSEC = 1000;
+        // 当收到消息时，更新日志内容
+        eventSource.onmessage = function (event) {
+            if(event.data != 'null')
+                $('#log-result').html($('#log-result').html() + event.data)
+        };
 
-        get_log = function () {
-            console.log("position is: "+position)
-            $.ajax({
-                type: "GET",
-                url: "/logs/get/",
-                data: { position: position },
-                dataType: "text",
-                success: function (result) {
-                    var resultObj = JSON.parse(result);
-                    //var html = document.getElementById("div_id").innerHTML;
-                    var resultEle = $("#log-result");
-                    var html = resultEle.html();
-                    var htmlShort = html.substr(-50000);
-                    document.getElementById("log-result").innerHTML = htmlShort;
-                    resultEle.append(resultObj.content_text);
-                    position = resultObj.position;
-                    console.log("position: " + position)
-                    if (autoscroll) {
-                        // window.scrollTo(0, document.body.scrollHeight);
+        // 处理 SSE 连接关闭的情况
+        eventSource.onclose = function () {
+            console.log('Server-Sent-Event关闭！');
+        };
 
-                        resultEle.scrollTop(resultEle[0].scrollHeight);
-                        $("#btn-auto-scroll").text("滚动开启");
-                        $("#btn-auto-scroll").removeClass("btn-dark").addClass("btn-info");
-                    } else {
-                        $("#btn-auto-scroll").text("滚动关闭");
-                        $("#btn-auto-scroll").removeClass("btn-info").addClass("btn-dark");
-                    }
+        // 处理错误
+        eventSource.onerror = function (err) {
+            console.error('Server-Sent-Event连接失败！', err);
+            eventSource.close();
+        };
+    }
 
+    // 加载全部日志
+    function loadFullLog() {
+        try {
+            if (eventSource) {
+                eventSource.close();
+                console.log('关闭已有的Server-Sent-Event连接！');
+            }
+        } catch (error) {
+            // 错误处理
+        }
+        $.ajax({
+            url: '/logs/get',
+            type: 'POST',
+            //async: false,
+            success: function (result) {
+                if (result) {
+                    $('#log-result').html(result.data);
+                } else {
+                    $('#log-result').val("Log content not found in the response.");
                 }
-            });
-        };
-        var iid = setInterval(get_log, REFRESH_MSEC);
-        var runStatus = 1;
-        $("#btn-switch-run").on("click", function () {
-            if (runStatus === 1) {
-                $("#btn-switch-run").text("暂停了");
-                $("#btn-switch-run").removeClass("btn-success").addClass("btn-dark");
-                clearInterval(iid);
-                runStatus = 0;
-            } else {
-                $("#btn-switch-run").text("运行中");
-                $("#btn-switch-run").removeClass("btn-dark").addClass("btn-success");
-                iid = setInterval(get_log, REFRESH_MSEC);
-                runStatus = 1;
-
+                scrollToBottom();
+                connectToLogStream();
+            },
+            error: function (xhr, status, error) {
+                $('#log-result').val("Error fetching log.\n" + error);
             }
         });
+    }
 
+    $('#btn-refresh-log').click(function () {
+        loadFullLog();
+    });
+    // 页面加载时，自动加载全部日志并连接到 SSE 日志流
+    $(window).on('load', function () {
+        loadFullLog();
     });
 </script>
 

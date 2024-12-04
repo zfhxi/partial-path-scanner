@@ -1,9 +1,11 @@
 from app import flask_app, FLASK_DEBUG
 from app.utils import getLogger
+from flask_cors import CORS
 
 logger = getLogger(__name__)
 
 if __name__ == '__main__' or 'run':
+    CORS(flask_app)
     logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     logger.warning("程序启动中......")
     logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
