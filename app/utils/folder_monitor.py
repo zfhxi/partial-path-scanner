@@ -301,9 +301,6 @@ def create_folder_scheduler(
 
 
 def manual_scan(scan_path, servers_cfg, fs, db):
-    # config = YAMLCONFIG.get()
-    # fs = CloudDriveClient(config['cd2']['host'], config['cd2']['user'], config['cd2']['password']).fs
-
     scanning_pool = ScanningPool(servers_cfg=servers_cfg, fs=fs, db=db)
     '''扫描完指定路径后退出脚本'''
     logger.warning(f"Scanning path: {scan_path}...")

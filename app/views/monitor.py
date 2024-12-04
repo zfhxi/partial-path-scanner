@@ -4,7 +4,7 @@ from flask_login import login_required
 from app.database import MonitoredFolder
 from app.extensions import sqlite_db, scheduler, redis_db, cd2
 
-from app.tasks import mtime_updating
+from app.tasks import mtime_updating, manual_scan_bg
 from app.utils import (
     MonitoredFolderDataSchema,
     EditMonitoredFolderDataSchema,
@@ -133,7 +133,6 @@ def monitored_folder_edit():
     offset = data['offset']
     blacklist = data['blacklist']
     enabled = data['enabled']
-    mtime_update_strategy = data.get('mtime_update_strategy', 'disabled')
     try:
         if new_folder == folder:  # 未修改监控目录名
             MonitoredFolder.query.filter(MonitoredFolder.folder == folder).update(
@@ -311,5 +310,16 @@ def scan_folder_unconditionally():
     except Exception as e:
         return jsonify(status='error', message=str(e))
     folder = data['folder']
-    rval, message = manual_scan(folder, current_app.config['MEDIA_SERVERS'], cd2.fs, redis_db)
+    # rval, message = manual_scan(folder, current_app.config['MEDIA_SERVERS'], cd2.fs, redis_db)
+    try:
+        task = manual_scan_bg.delay(folder, current_app.config['MEDIA_SERVERS'])
+        if task:
+            message = f"已提交手动扫描路径[{folder}]的后台任务！, 任务ID：{task.id}"
+        else:
+            raise Exception(f"创建手动扫描路径[{folder}]后台任务失败！{e}")
+        logger.info(message)
+        rval = True
+    except Exception as e:
+        message = e
+        rval = False
     return jsonify(status='success' if rval else 'error', message=message)
