@@ -101,7 +101,9 @@ class ScanningPool(object):
                     else:
                         self.logger.warning(f"{_p}")
         for mtimepath in self.wait_updating_mtimepaths.keys():
-            if mtimepath_scanned_marks[mtimepath]:
+            if mtimepath_scanned_marks[mtimepath] and not cache_isfile.get(
+                mtimepath, False
+            ):  # 如果mtimepath为文件，则不更新mtime
                 self.db.set(mtimepath, self.mtimepath2mtime[mtimepath])
                 # logger.info(f"更新[{mtimepath}]的mtime为{timestamp_to_datetime(self.mtimepath2mtime[mtimepath])}")
                 self.logger.info(f"更新mtime: [{mtimepath}]=>{timestamp_to_datetime(self.mtimepath2mtime[mtimepath])}")
