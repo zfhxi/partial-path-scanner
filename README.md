@@ -81,7 +81,7 @@ services:
 ## TODO
 
 - [ ] find more bugs.
-- [ ] 生产模式的多线程环境下，CloudDriveFileSystem第一次调用类方法会抛出`OSError: Socket operation on non-socket (88)`；开发模式下不抛出异常。需要更优雅的解决方案。
+- [ ] 对某些目录提交mtime增量更新后台任务，偶尔执行失效。
 - [x] ~~阿里云盘目录的mtime不会随子文件新增而变化，需要额外的逻辑处理。~~（移除计划：开发者弃用阿里云盘）
 - [x] ~~plex media server 1.41.2.9200版本似乎不支持xxx.mkv这种单个文件入库了，需要扫描父目录。~~（错误的判断，仍保留isfile_based_scanning参数）
 

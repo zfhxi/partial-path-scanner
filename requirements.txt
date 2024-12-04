@@ -15,4 +15,3 @@ flask-sqlalchemy==3.1.1
 Celery==5.4.0
 supervisor==4.2.5
 flask-cors==5.0.0
-gunicorn==23.0.0

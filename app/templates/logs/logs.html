@@ -63,7 +63,7 @@
         // 创建一个新的 EventSource 对象来连接到服务器端的 SSE 端点
         eventSource = new EventSource('/logs/get');
         eventSource.onopen = function () {
-            console.log('Server-Sent-Event连接成功！')
+            //console.log('Server-Sent-Event连接成功！')
         };
         // 当收到消息时，更新日志内容
         eventSource.onmessage = function (event) {
@@ -78,7 +78,7 @@
 
         // 处理错误
         eventSource.onerror = function (err) {
-            console.error('Server-Sent-Event连接失败！', err);
+            //console.error('Server-Sent-Event连接失败！', err);
             eventSource.close();
         };
     }

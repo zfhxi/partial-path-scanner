@@ -1,5 +1,5 @@
 import os
-import asyncio
+import time
 from flask import render_template, Blueprint, request, jsonify, send_file, current_app, Response, stream_with_context
 from flask_login import login_required
 from app.utils import getLogger
@@ -31,45 +31,20 @@ def _process_line(line):
     return f'<p class="log-line" style="color:{color}"> {line} </p>'
 
 
-# 参考：https://stackoverflow.com/questions/73949570/using-stream-with-context-as-async
-def iter_over_async(ait, loop):
-    ait = ait.__aiter__()
-
-    async def get_next():
-        try:
-            obj = await ait.__anext__()
-            return False, obj
-        except StopAsyncIteration:
-            return True, None
-
-    while True:
-        done, obj = loop.run_until_complete(get_next())
-        if done:
-            break
-        yield obj
-
-
 global_line_number = 0
 
 
-async def generate():
+@stream_with_context
+def generate():
     global global_line_number
     fullname = os.path.join(current_app.config['LOG_DIR'], 'app.log')
     with open(fullname, 'r') as f:
         lines = f.readlines()[global_line_number:]
-        while True:
-            if len(lines) > 0:
-                for line in lines:
-                    global_line_number += 1
-                    context = _process_line(line)
-                    yield f"data:{context}\n\n"
-                    # time.sleep(0.5)
-                    await asyncio.sleep(0.5)
-            else:
-                yield f"data:null\n\n"
-                # time.sleep(3)
-                await asyncio.sleep(3)
-            lines = f.readlines()
+        for line in lines:
+            global_line_number += 1
+            context = _process_line(line)
+            yield f"data:{context}\n\n"
+            time.sleep(0.1)
 
 
 @logs_bp.route("/get/", methods=['POST', 'GET'])
@@ -87,10 +62,7 @@ def logs_get():
                 context += _process_line(line) + '\n'
         return jsonify({"data": context, "position": str(global_line_number)})
     else:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        _iter = iter_over_async(generate(), loop)
-        return Response(stream_with_context(_iter), mimetype='text/event-stream')
+        return Response(generate(), mimetype='text/event-stream')
 
 
 @logs_bp.route('/download/', methods=['GET', 'POST'])
