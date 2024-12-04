@@ -53,7 +53,7 @@ services:
     depends_on:
       - pps-redis
   pps-redis:
-    image: redis:latest
+    image: redis:7.4.1
     container_name: pps-redis
     restart: always
     network_mode: bridge
