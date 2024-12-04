@@ -1,11 +1,13 @@
 import os
 from flask import Flask
+from flask_cors import CORS
 from app.models import LoginUser
 from app.extensions import redis_db, sqlite_db, login_manager, bcrypt, scheduler, cd2
 from app.views import auth_bp, monitor_bp, files_bp, index_bp, logs_bp
 from app.database import User, MonitoredFolder
-from app.utils import folder_scan, create_folder_scheduler, getLogger
+from app.utils import folder_scan, create_folder_scheduler, getLogger, setLogger
 from celery import Celery, Task
+from celery.signals import after_setup_logger
 from app.config import DevConfig, ProductionConfig
 
 logger = getLogger("app_init")
@@ -42,6 +44,8 @@ def create_app():
         register_default_user(flask_app)
         init_launch(flask_app)
 
+    # 跨域
+    CORS(flask_app)
     return flask_app, celery_app
 
 
@@ -110,7 +114,7 @@ def init_launch(app):
                 _monitor.folder,
                 _monitor.blacklist,
                 servers_cfg=servers_cfg,
-                fs=cd2.fs,
+                fs=cd2,
                 db=redis_db,
                 fetch_mtime_only=fetch_mtime_only,
                 fetch_all_mode=fetch_all_mode,
@@ -119,7 +123,7 @@ def init_launch(app):
             _monitor,
             servers_cfg=servers_cfg,
             scheduler=scheduler,
-            fs=cd2.fs,
+            fs=cd2,
             db=redis_db,
             fetch_mtime_only=fetch_mtime_only,
             fetch_all_mode=fetch_all_mode,
@@ -155,4 +159,10 @@ def celery_init_app(app: Flask) -> Celery:
     return celery_app
 
 
-flask_app, celery_app = create_app()
+# celery日志配置
+@after_setup_logger.connect
+def setup_loggers(logger, *args, **kwargs):
+    logger = setLogger(logger, name="celery")
+
+
+app, celery_app = create_app()

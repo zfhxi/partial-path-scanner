@@ -18,17 +18,17 @@ def files(req_path):
     req_path = req_path if req_path.startswith('/') else f'/{req_path}'
 
     # Return 404 if path doesn't exist
-    if not cd2.fs.exists(req_path):
+    if not cd2.exists(req_path):
         return abort(404)
 
     # Check if path is a file and serve
-    if not cd2.fs.attr(req_path)['isDirectory']:
+    if not cd2.attr(req_path)['isDirectory']:
         # return send_file(req_path)
         pass
         return
 
     # Show directory contents
-    files_metadata = cd2.fs.listdir_attr(req_path)
+    files_metadata = cd2.listdir_attr(req_path)
     files = []
     total_count = 0
     file_count = 0
@@ -41,7 +41,7 @@ def files(req_path):
     for file_meta in files_metadata:
         path = file_meta['path']
         isdir = file_meta['isDirectory'] if req_path != '/' else True
-        mtime = cd2.fs.attr(path)['mtime']
+        mtime = cd2.attr(path)['mtime']
         dbmtime = redis_db.get(path)
         if not isdir or not dbmtime or float(dbmtime) < mtime:
             need_update = True

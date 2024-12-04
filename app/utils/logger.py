@@ -58,3 +58,14 @@ def getLogger(name):
     # logger.setLevel(logging.WARNING)
     logger.addFilter(FileHandlerFilter())
     return logger
+
+
+def setLogger(_logger, name=None):
+    if name == 'celery':
+        new_fileHandler = logging.FileHandler(f"{os.path.dirname(os.path.abspath(__file__))}/../../log/celery_task.log")
+        new_fileHandler.setFormatter(file_formatter_obj)
+        _logger.addHandler(new_fileHandler)
+    else:
+        _logger.addHandler(fileHandler)
+    _logger.addFilter(FileHandlerFilter())
+    return _logger

@@ -107,7 +107,7 @@ def monitored_folder_add():
             monitored_folder=monitored_folder,
             servers_cfg=current_app.config['MEDIA_SERVERS'],
             scheduler=scheduler,
-            fs=cd2.fs,
+            fs=cd2,
             db=redis_db,
         )
         message = f"监控目录[{folder}]已添加！"
@@ -173,7 +173,7 @@ def monitored_folder_edit():
             monitored_folder=monitored_folder,
             servers_cfg=current_app.config['MEDIA_SERVERS'],
             scheduler=scheduler,
-            fs=cd2.fs,
+            fs=cd2,
             db=redis_db,
         )
         logger.info(message)
@@ -209,7 +209,7 @@ def monitered_folder_edit_status():
                     monitored_folder=monitored_folder,
                     servers_cfg=current_app.config['MEDIA_SERVERS'],
                     scheduler=scheduler,
-                    fs=cd2.fs,
+                    fs=cd2,
                     db=redis_db,
                 )
         message = f"监控目录[{folder}]已{'启用' if new_enabled else '禁用'}！"
@@ -310,7 +310,7 @@ def scan_folder_unconditionally():
     except Exception as e:
         return jsonify(status='error', message=str(e))
     folder = data['folder']
-    # rval, message = manual_scan(folder, current_app.config['MEDIA_SERVERS'], cd2.fs, redis_db)
+    # rval, message = manual_scan(folder, current_app.config['MEDIA_SERVERS'], cd2, redis_db)
     try:
         task = manual_scan_bg.delay(folder, current_app.config['MEDIA_SERVERS'])
         if task:

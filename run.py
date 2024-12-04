@@ -1,18 +1,14 @@
-from app import flask_app, FLASK_DEBUG
+from gevent import pywsgi
+from app import app, FLASK_DEBUG
 from app.utils import getLogger
-from flask_cors import CORS
 
 logger = getLogger(__name__)
-
-if __name__ == '__main__' or 'run':
-    CORS(flask_app)
+if __name__ == '__main__':
     logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     logger.warning("程序启动中......")
     logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     if FLASK_DEBUG:
-        flask_app.run(host=flask_app.config['FLASK_HOST'], port=flask_app.config['FLASK_PORT'])
+        app.run(host=app.config['FLASK_HOST'], port=app.config['FLASK_PORT'])
     else:
-        from gevent import pywsgi
-
-        server = pywsgi.WSGIServer((flask_app.config['FLASK_HOST'], flask_app.config['FLASK_PORT']), flask_app)
+        server = pywsgi.WSGIServer((app.config['FLASK_HOST'], app.config['FLASK_PORT']), app)
         server.serve_forever()

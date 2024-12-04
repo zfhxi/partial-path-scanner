@@ -1,5 +1,5 @@
 from .yaml_loader import YAMLLoader
-from .logger import getLogger
+from .logger import getLogger, setLogger
 from .others import read_deepvalue, str2bool, timestamp_to_datetime
 from .schema import (
     get_valid_interval,

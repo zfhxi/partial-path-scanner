@@ -21,6 +21,7 @@ COPY template/supervisord.conf /etc/supervisord.conf
 COPY entrypoint /app/entrypoint
 COPY app /app/app
 COPY run.py /app/run.py
+COPY gunicorn.conf.py /app/gunicorn.conf.py
 RUN chmod +x /app/entrypoint \
     && chmod 644 /etc/logrotate.d/partialpathscanner
 

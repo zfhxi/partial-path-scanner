@@ -14,7 +14,7 @@ def mtime_updating(folder, blacklist, servers_cfg, fetch_mtime_only, fetch_all_m
             folder,
             blacklist,
             servers_cfg,
-            fs=cd2.fs,
+            fs=cd2,
             db=redis_db,
             fetch_mtime_only=fetch_mtime_only,
             fetch_all_mode=fetch_all_mode,
@@ -37,7 +37,7 @@ def mtime_clearing(folder):
 
 @shared_task(ignore_result=False)
 def manual_scan_bg(folder, servers_cfg):
-    rval, message = manual_scan(folder, servers_cfg, cd2.fs, redis_db)
+    rval, message = manual_scan(folder, servers_cfg, cd2, redis_db)
     if rval:
         logger.info(f"手动扫描路径[{folder}]完成!")
     else:
