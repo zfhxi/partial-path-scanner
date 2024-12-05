@@ -1,4 +1,5 @@
-from flask import Blueprint, request, redirect, render_template, flash
+import datetime
+from flask import Blueprint, request, redirect, render_template, flash, session, current_app
 from flask_login import login_required, login_user, logout_user
 from app.models import LoginUser
 from app.database import User
@@ -18,6 +19,8 @@ def login():
     is_valid = user and user.check_password(password)
     if is_valid:
         login_user(LoginUser(user.id))
+        session.permanent = True
+        current_app.permanent_session_lifetime = datetime.timedelta(days=7)
         return redirect('/')
     else:
         flash('用户名或密码输入错误', 'error')
