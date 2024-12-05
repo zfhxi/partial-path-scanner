@@ -82,25 +82,13 @@ def files(req_path):
 def mtime_updating_task_wrapper(mtime_update_strategy, folder, blacklist):
     servers_cfg = current_app.config['MEDIA_SERVERS']
     if mtime_update_strategy == 'partial':
-        task = mtime_updating.delay(
-            folder,
-            blacklist,
-            servers_cfg,
-            fetch_mtime_only=True,
-            fetch_all_mode=False,
-        )
+        task = mtime_updating.apply_async(args=[folder, blacklist, servers_cfg, True, False])
         message = f"后台增量更新目录[{folder}]及其子目录缺失的mtime..."
     elif mtime_update_strategy == 'full':
-        task = mtime_updating.delay(
-            folder,
-            blacklist,
-            servers_cfg,
-            fetch_mtime_only=True,
-            fetch_all_mode=True,
-        )
+        task = mtime_updating.apply_async(args=[folder, blacklist, servers_cfg, True, True])
         message = f"后台全量更新目录[{folder}]及其子目录的mtime..."
     elif mtime_update_strategy == 'reset':
-        task = mtime_clearing.delay(folder)
+        task = mtime_clearing.apply_async(args=[folder])
         message = f"后台清空目录[{folder}]及其子目录的mtime..."
     else:
         task = None

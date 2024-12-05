@@ -42,24 +42,10 @@ def index():
 def mtime_updating_when_update_folder_task_wrapper(mtime_update_strategy, folder, blacklist):
     servers_cfg = current_app.config['MEDIA_SERVERS']
     if mtime_update_strategy == 'partial':
-        task = mtime_updating.delay(
-            folder,
-            blacklist,
-            servers_cfg,
-            fetch_mtime_only=True,
-            fetch_all_mode=False,
-        )
-        # task = _mtime_updating_task(folder, blacklist, servers_cfg, True, False)
+        task = mtime_updating.apply_async(args=[folder, blacklist, servers_cfg, True, False])
         message = f"后台更新缺失的目录mtime..."
     elif mtime_update_strategy == 'full':
-        task = mtime_updating.delay(
-            folder,
-            blacklist,
-            servers_cfg,
-            fetch_mtime_only=True,
-            fetch_all_mode=True,
-        )
-        # task = _mtime_updating_task(folder, blacklist, servers_cfg, True, True)
+        task = mtime_updating.apply_async(args=[folder, blacklist, servers_cfg, True, True])
         message = f"后台全量更新目录mtime..."
     else:
         task = None
@@ -312,7 +298,7 @@ def scan_folder_unconditionally():
     folder = data['folder']
     # rval, message = manual_scan(folder, current_app.config['MEDIA_SERVERS'], cd2, redis_db)
     try:
-        task = manual_scan_bg.delay(folder, current_app.config['MEDIA_SERVERS'])
+        task = manual_scan_bg.apply_async(args=[folder, current_app.config['MEDIA_SERVERS']])
         if task:
             message = f"已提交手动扫描路径[{folder}]的后台任务！, 任务ID：{task.id}"
         else:

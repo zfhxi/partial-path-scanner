@@ -155,9 +155,13 @@ def celery_init_app(app: Flask) -> Celery:
     # )
     celery_app.conf.update(
         # worker_concurrency=4,
-        task_ignore_result=False,
-        task_track_started=True,
-    )  # refer to https://github.com/Ryuchen/Panda-Sandbox/blob/09ae5da4b0ee4c688311208ce819dae82593490a/sandbox/celery.py#L43
+        broker_transport_options={
+            'max_retries': 5,
+            'interval_start': 0,
+            'interval_step': 10,
+            'interval_max': 30,
+        },
+    )
     celery_app.autodiscover_tasks()
     celery_app.set_default()
     app.extensions["celery"] = celery_app

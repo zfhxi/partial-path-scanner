@@ -47,6 +47,10 @@ services:
     container_name: pp-scanner
     network_mode: host
     restart: unless-stopped
+    environment:
+      - FLOWER_BASIC_AUTH=admin:admin # 启动flower时，监控后台任务的用户名及密码，便于查看任务状态
+      - FLOWER_PORT=1024 # flower ui的端口
+      - FLOWER_URL_PREFIX=/flower # 通过http://yourip:1024/flower访问flower ui
     volumes:
       - ./config:/app/config
       - ./log:/app/log
@@ -74,6 +78,26 @@ services:
 2. 定时任务每间隔特定时间来遍历监控目录，检查该目录及其子目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描。  
 3. 扫描时，根据配置文件中的`path_mapping`规则，将clouddrive2中的路径映射到plex/emby media server的路径。  
 
+## nginx反向代理
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:2024;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+location /logs/get {
+    proxy_pass http://127.0.0.1:2024/logs/get;
+}
+location /flower {
+    rewrite ^/flower$ /flower/;
+    proxy_pass http://127.0.0.1:1024;
+}
+```
+访问`pps.yourdomain.com`即可访问web ui来添加监控目录, 访问`pps.yourdomain.com/flower`即可访问flower ui查看后台任务状态。
+
+
 ## 局限性
 
 **最近115风控厉害，建议cd2中115的maxQueriesPerSecond参数调小（如0.9），尽管这样会导致遍历目录树时间加长，但可以缓解风控。**
@@ -81,9 +105,9 @@ services:
 ## TODO
 
 - [ ] find more bugs.
-- [ ] 对某些目录提交mtime增量更新后台任务，偶尔执行失效。
+- [x] 对某些目录提交mtime增量更新后台任务，偶尔执行失效。（开发环境和生产环境共用了同一个redis，参考[此处](https://blog.51cto.com/u_2371418/5166076)解决）
+- [x] plex media server似乎不支持扫描xxx.mkv这种单个文件入库，需要扫描父目录。（引入isfile_based_scanning参数）
 - [x] ~~阿里云盘目录的mtime不会随子文件新增而变化，需要额外的逻辑处理。~~（移除计划：开发者弃用阿里云盘）
-- [x] ~~plex media server 1.41.2.9200版本似乎不支持xxx.mkv这种单个文件入库了，需要扫描父目录。~~（错误的判断，仍保留isfile_based_scanning参数）
 
 ## 参考
 

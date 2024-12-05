@@ -46,19 +46,21 @@ class BaseConfig(object):
             f'redis://{redis_username}:{redis_password}@{redis_host}:{redis_port}/{celery_result_db}'
         )
         self.CELERY_LOG_DIR = os.path.join(self.APP_DIR, '_celery_logs')
-        # self.CELERY_BEAT_SCHEDULE = {
-        #     'log-access-time-every-minute': {
-        #         'task': 'app.tasks.log_access_schedule_time',
-        #         'schedule': 60.0,  # 每60秒执行一次
-        #     },
-        # }
-        # self.CELERY_WORKERS = 4
         self.CELERY = dict2obj(
             dict(
                 broker_url=self.CELERY_BROKER_URL,
                 result_backend=self.CELERY_RESULT_BACKEND,
-                task_ignore_result=True,
                 broker_connection_retry_on_startup=True,
+                task_ignore_result=False,
+                task_track_started=True,
+                worker_pool_restarts=True,  # refer to https://github.com/celery/celery/issues/8966
+                broker_heartbeat=10,
+                broker_connection_timeout=15,
+                broker_connection_retry=True,
+                broker_connection_max_retries=200,
+                worker_cancel_long_running_tasks_on_connection_loss=True,
+                result_backend_always_retry=True,
+                redis_backend_health_check_interval=10,
             )
         )
         # SQLAlchemy
