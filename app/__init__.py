@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from flask_cors import CORS
 from app.models import LoginUser
-from app.extensions import redis_db, sqlite_db, login_manager, bcrypt, scheduler, cd2
+from app.extensions import redis_db, sqlite_db, login_manager, bcrypt, scheduler, storage_client
 from app.views import auth_bp, monitor_bp, files_bp, index_bp, logs_bp
 from app.database import User, MonitoredFolder
 from app.utils import folder_scan, create_folder_scheduler, getLogger, setLogger
@@ -70,8 +70,8 @@ def register_extensions(app):
     # 注册定时任务调度器
     scheduler.init_app(app)
     scheduler.start()
-    # 注册clouddrive2
-    cd2.init_app(app)
+    # 注册存储客户端
+    storage_client.init_app(app)
     # 注册celery
     # celery_wrapper.init_app(app)
 
@@ -119,7 +119,7 @@ def init_launch(app):
                 _monitor.folder,
                 _monitor.blacklist,
                 servers_cfg=servers_cfg,
-                fs=cd2,
+                storage_client=storage_client,
                 db=redis_db,
                 fetch_mtime_only=fetch_mtime_only,
                 fetch_all_mode=fetch_all_mode,
@@ -128,7 +128,7 @@ def init_launch(app):
             _monitor,
             servers_cfg=servers_cfg,
             scheduler=scheduler,
-            fs=cd2,
+            storage_client=storage_client,
             db=redis_db,
             fetch_mtime_only=fetch_mtime_only,
             fetch_all_mode=fetch_all_mode,

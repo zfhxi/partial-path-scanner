@@ -61,6 +61,7 @@ class BaseConfig(object):
                 worker_cancel_long_running_tasks_on_connection_loss=True,
                 result_backend_always_retry=True,
                 redis_backend_health_check_interval=10,
+                timezone=read_deepvalue(self._config, 'flask', 'scheduler', 'timezone'),
             )
         )
         # SQLAlchemy
@@ -75,10 +76,13 @@ class BaseConfig(object):
         self.SCHEDULER_TIMEZONE = read_deepvalue(self._config, 'flask', 'scheduler', 'timezone')
         self.SCHEDULER_API_ENABLED = str2bool(read_deepvalue(self._config, 'flask', 'scheduler', 'api_enabled'))
         self.SCHEDULER_DEFAULT_INTERVAL = read_deepvalue(self._config, 'flask', 'scheduler', 'default_interval')
-        # clouddrive2
-        self.CLOUDDRIVE2_HOST = read_deepvalue(self._config, 'clouddrive2', 'host')
-        self.CLOUDDRIVE2_USERNAME = read_deepvalue(self._config, 'clouddrive2', 'username')
-        self.CLOUDDRIVE2_PASSWORD = read_deepvalue(self._config, 'clouddrive2', 'password')
+        # 文件存储
+        storage_providers = read_deepvalue(self._config, 'storage_providers')
+        self.STORAGE_PROVIDER = storage_providers.get('provider', None)
+        assert self.STORAGE_PROVIDER is not None, '请设置storage_providers.provider'
+        self.STORAGE_HOST = read_deepvalue(storage_providers, self.STORAGE_PROVIDER, 'host')
+        self.STORAGE_USERNAME = read_deepvalue(storage_providers, self.STORAGE_PROVIDER, 'username')
+        self.STORAGE_PASSWORD = read_deepvalue(storage_providers, self.STORAGE_PROVIDER, 'password')
         self.MEDIA_SERVERS = read_deepvalue(self._config, 'media_servers')
         self.UPDATE_MTIME_ON_STARTUP = str2bool(os.getenv('UPDATE_MTIME_ON_STARTUP', 'False'))
         self.UPDATE_MTIME_OF_ALL = str2bool(os.getenv('UPDATE_MTIME_OF_ALL', 'False'))

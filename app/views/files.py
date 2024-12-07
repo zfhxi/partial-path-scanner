@@ -1,7 +1,7 @@
 import os
 from flask import render_template, request, Blueprint, jsonify, abort, current_app
 from flask_login import login_required
-from app.extensions import cd2, redis_db
+from app.extensions import storage_client, redis_db
 from app.utils import getLogger, sort_list_mixedversion, timestamp_to_datetime, MtimeUpdateStrategySchema
 from app.tasks import mtime_updating, mtime_clearing
 
@@ -18,17 +18,17 @@ def files(req_path):
     req_path = req_path if req_path.startswith('/') else f'/{req_path}'
 
     # Return 404 if path doesn't exist
-    if not cd2.exists(req_path):
+    if not storage_client.exists(req_path):
         return abort(404)
 
     # Check if path is a file and serve
-    if not cd2.attr(req_path)['isDirectory']:
+    if not storage_client.is_dir(req_path):
         # return send_file(req_path)
         pass
         return
 
     # Show directory contents
-    files_metadata = cd2.listdir_attr(req_path)
+    files_metadata = storage_client.listdir_attr(req_path)
     files = []
     total_count = 0
     file_count = 0
@@ -40,10 +40,10 @@ def files(req_path):
         sort_name_map[name] = str(i + 1).zfill(_adjuster)
     for file_meta in files_metadata:
         path = file_meta['path']
-        isdir = file_meta['isDirectory'] if req_path != '/' else True
-        mtime = cd2.attr(path)['mtime']
+        isdir = storage_client.is_dir(path) if req_path != '/' else True
+        mtime = storage_client.get_mtime(path)
         dbmtime = redis_db.get(path)
-        if not isdir or not dbmtime or float(dbmtime) < mtime:
+        if not isdir or not dbmtime or float(dbmtime) < float(mtime):
             need_update = True
         else:
             need_update = False

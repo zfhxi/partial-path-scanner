@@ -28,12 +28,18 @@ databases:
         path: "app.sqlite" # /config路径下的sqlite数据库文件路径
         pool_timeout: 10 # 连接超时时间
         pool_size: 5 # 连接池大小
-
-clouddrive2:
-    # clouddrive2配置
-    host: http://xxx.xxx.xxx.xxx:19798
-    username: xxx@mail.com
-    password: xxxxx
+storage_providers:
+    provider: "clouddrive2" # 选择cd2作为目录树遍历的存储提供者
+    clouddrive2:
+        # clouddrive2配置
+        host: http://xxx.xxx.xxx.xxx:19798
+        username: xxx@mail.com
+        password: xxxxx
+    alist:
+        # alist配置
+        host: http://xxx.xxx.xxx.xxx:5244
+        username: xxxxx
+        password: xxxxxxxxxx
 media_servers:
     # 媒体服务器配置
     plex:

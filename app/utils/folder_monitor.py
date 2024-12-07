@@ -5,7 +5,6 @@ from .logger import getLogger
 from .scanner import PlexScanner, EmbyScanner
 
 from datetime import datetime
-from clouddrive import CloudDrivePath
 import functools
 from collections import defaultdict
 
@@ -13,8 +12,8 @@ logger = getLogger(__name__)
 
 
 class ScanningPool(object):
-    def __init__(self, servers_cfg, fs, db, this_logger=logger):
-        self.fs = fs
+    def __init__(self, servers_cfg, storage_client, db, this_logger=logger):
+        self.storage_client = storage_client
         self.db = db
         self.media_servers_cfg = servers_cfg
         self.pool = []
@@ -57,7 +56,7 @@ class ScanningPool(object):
         cache_parent_folder = {}
         path_based_queue = []
         for _p in queue:
-            if not self.fs.attr(_p)['isDirectory']:
+            if not self.storage_client.is_dir(_p):
                 parent_of_p = os.path.dirname(_p)
                 path_based_queue.append(parent_of_p)
                 cache_isfile[_p] = True
@@ -113,34 +112,18 @@ class ScanningPool(object):
         self.pool.clear()
 
 
-def get_mtime(path, fs):
-    try:
-        # if os.path.exists(path):
-        if isinstance(path, CloudDrivePath):
-            mtime = path.mtime
-        elif isinstance(path, str):
-            mtime = fs.attr(path)['mtime']
-        else:
-            raise TypeError(f"Invalid path type: {type(path)}")
-        # return f"{mtime}|{time.ctime(mtime)}
-        return f"{mtime}"
-    except Exception as e:
-        logger.error(f"[ERROR] {e}")
-        return None
-
-
 def path_scan_workder(
     path,
     find_updated_folders_func,
     scanning_pool,
-    fs,
+    storage_client,
     db,
     fetch_mtime_only=False,
     fetch_all_mode=False,
     this_logger=logger,
 ):
     base_mtime = db.get(path)
-    new_mtime = get_mtime(path, fs)
+    new_mtime = storage_client.get_mtime(path)
     if base_mtime is None or base_mtime != new_mtime:
         if not fetch_mtime_only:
             # 找出产生更新的子目录来进行扫库
@@ -153,15 +136,6 @@ def path_scan_workder(
             this_logger.info(f"更新mtime: [{path}]=>{timestamp_to_datetime(new_mtime)}")
 
 
-def fs_walk_deprecated(fs, top: str, blacklist=[], **kwargs):
-    for path, dirs, files in fs.walk_attr(top, topdown=True, **kwargs):
-        _dirs = [
-            d for d in dirs if not (d['path'] in blacklist or d['name'].startswith('.'))
-        ]  # not valid when topdown=False
-        dirs[:] = _dirs
-        yield path, [a["name"] for a in dirs], [a["name"] for a in files]
-
-
 def fs_walk(fs, top: str, blacklist=[], **kwargs):
     for path, dirs, _ in fs.walk_attr(top, topdown=True, **kwargs):
         _dirs = [
@@ -171,45 +145,33 @@ def fs_walk(fs, top: str, blacklist=[], **kwargs):
         yield path, [a["name"] for a in dirs]
 
 
-def find_updated_folders(top, blacklist, fs, db):
+def find_updated_folders(top, blacklist, storage_client, db):
     '''找出哪个子目录或者文件变更了，只遍历一级深度（不进行向下递归）；
     比较子文件（夹）的mtime和top目录在数据库中的old_mtime，如果子文件（夹）的mtime大于top的old_mtime，则认为该子文件（夹）发生了变更；
-    FIXME: 当有子文件（夹）被删除时，所有的子文件（夹）的mtime都不会大于old_mtime，该如何处理？
-        保守方案：只扫描新增的子文件（夹），不扫描被删除的子文件（夹），媒体库里存在一些不可用媒体文件；
-        激进方案：当updated_folders为空时，扫描top目录。但假设删除/115/电视/国产剧/xxx1，可能会导致扫描/115/电视/国产剧/，产生大量扫描。
     '''
     updated_folders = []
-    subs = fs.listdir_attr(top)
+    subs = storage_client.listdir_attr(top)
     old_mtime = db.get(top)
     if bool(old_mtime):
+        old_mtime = float(old_mtime)
         for sub in subs:
             sub_full_path = sub['path']
             if sub_full_path in blacklist or sub['name'].startswith("."):
                 continue
-            sub_mtime = str(fs.attr(sub_full_path)['mtime'])
+            sub_mtime = float(storage_client.get_mtime(sub_full_path))
             if sub_mtime > old_mtime:
                 updated_folders.append(sub_full_path)
                 # BUG: 如果新增了folder，此处未将其mtime写入db，当下次遍历目录比对mtime时，会再次扫描该folder。此处摆烂，允许media server再次扫描。
-    if len(updated_folders) == 0:  # 启用激进方案
+    if len(updated_folders) == 0 and (storage_client.get_mtime(top) != str(old_mtime)):  # 可能删除了子文件（夹）
         updated_folders.append(top)
     return updated_folders
-
-
-def test_fs_walk(fs, top, blacklist, deprecated=True):
-    if deprecated:
-        for root, dirs, files in fs_walk_deprecated(fs, top=top, blacklist=blacklist):
-            # for root, _ in fs_walk(fs, top=_folder, blacklist=_blacklist):
-            print(f"- {root}")
-    else:
-        for root, _ in fs_walk(fs, top=top, blacklist=blacklist):
-            print(f"- {root}")
 
 
 def folder_scan(
     _folder,
     _blacklist,
     servers_cfg,
-    fs,
+    storage_client,
     db,
     fetch_mtime_only=False,
     fetch_all_mode=False,
@@ -228,22 +190,26 @@ def folder_scan(
     this_logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")  # fmt: skip
     this_logger.info(f"目录[{_folder}]的{MODE}@{t_start.replace(microsecond=0)}开始...")
 
-    find_updated_folders_func = functools.partial(find_updated_folders, blacklist=_blacklist, fs=fs, db=db)
-    scanning_pool = ScanningPool(servers_cfg=servers_cfg, fs=fs, db=db, this_logger=this_logger)
+    find_updated_folders_func = functools.partial(
+        find_updated_folders,
+        blacklist=_blacklist,
+        storage_client=storage_client,
+        db=db,
+    )
+    scanning_pool = ScanningPool(servers_cfg=servers_cfg, storage_client=storage_client, db=db, this_logger=this_logger)
 
     worker_partial = functools.partial(
         path_scan_workder,
         find_updated_folders_func=find_updated_folders_func,
         scanning_pool=scanning_pool,
-        fs=fs,
+        storage_client=storage_client,
         db=db,
         fetch_mtime_only=fetch_mtime_only,
         fetch_all_mode=fetch_all_mode,
         this_logger=this_logger,
     )
     # 监测子目录、子文件
-    # for root, dirs, files in fs_walk_deprecated(fs, top=_folder, blacklist=_blacklist):
-    for root, _ in fs_walk(fs, top=_folder, blacklist=_blacklist):
+    for root, _ in fs_walk(storage_client.fs, top=_folder, blacklist=_blacklist):
         worker_partial(root)
         print(f"- {root}")
     try:
@@ -267,7 +233,7 @@ def create_folder_scheduler(
     monitored_folder,
     servers_cfg,
     scheduler,
-    fs,
+    storage_client,
     db,
     fetch_mtime_only=False,
     fetch_all_mode=False,
@@ -293,18 +259,18 @@ def create_folder_scheduler(
             trigger='interval',
             seconds=interval_secs,
             jitter=jitter_secs,
-            args=[folder, blacklist, servers_cfg, fs, db, fetch_mtime_only, fetch_all_mode],
+            args=[folder, blacklist, servers_cfg, storage_client, db, fetch_mtime_only, fetch_all_mode],
         )
         logger.info(f"目录[{folder}]的定时任务创建完成！")
     else:
         logger.info(f"目录[{folder}]未启用，不创建定时任务！")
 
 
-def manual_scan(scan_path, servers_cfg, fs, db):
-    scanning_pool = ScanningPool(servers_cfg=servers_cfg, fs=fs, db=db)
+def manual_scan(scan_path, servers_cfg, storage_client, db):
+    scanning_pool = ScanningPool(servers_cfg=servers_cfg, storage_client=storage_client, db=db)
     '''扫描完指定路径后退出脚本'''
     logger.warning(f"Scanning path: {scan_path}...")
-    mtime = get_mtime(scan_path, fs)
+    mtime = storage_client.get_mtime(scan_path)
     scanning_pool.put(mtime, scan_path, scan_path)
     try:
         scanning_pool.finish_scan()

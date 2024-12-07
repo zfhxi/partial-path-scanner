@@ -1,6 +1,6 @@
 from celery import shared_task
 from app.utils import getLogger, folder_scan, manual_scan
-from app.extensions import redis_db, cd2
+from app.extensions import redis_db, storage_client
 
 
 logger = getLogger(__name__)
@@ -14,7 +14,7 @@ def mtime_updating(self, folder, blacklist, servers_cfg, fetch_mtime_only, fetch
             folder,
             blacklist,
             servers_cfg,
-            fs=cd2,
+            storage_client=storage_client,
             db=redis_db,
             fetch_mtime_only=fetch_mtime_only,
             fetch_all_mode=fetch_all_mode,
@@ -37,7 +37,7 @@ def mtime_clearing(self, folder):
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 5})
 def manual_scan_bg(self, folder, servers_cfg):
-    rval, message = manual_scan(folder, servers_cfg, cd2, redis_db)
+    rval, message = manual_scan(folder, servers_cfg, storage_client, redis_db)
     if rval:
         logger.info(f"手动扫描路径[{folder}]完成!")
     else:

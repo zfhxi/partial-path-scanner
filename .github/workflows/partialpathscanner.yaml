@@ -2,8 +2,8 @@ name: partialpathscanner Builder
 on:
     workflow_dispatch:
     push:
-        branches:
-          - main
+        tags:
+          - 'v*'
 env:
     DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

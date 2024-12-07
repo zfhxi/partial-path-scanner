@@ -1,27 +1,47 @@
-from clouddrive import CloudDriveClient
+from clouddrive import CloudDriveClient, CloudDriveFileSystem
 from celery import Celery
+from alist import AlistClient, AlistFileSystem
 
 
-class FlaskCloudDrive2Wrapper(object):
+class FlaskStorageClientWrapper(object):
     def __init__(self, app=None):
         self.app = app
         if app is not None:
             self.init_app(app)
 
     def connect_fs(self):
-        self.fs = CloudDriveClient(self.host, self.username, self.password).fs
+        if self.provider == 'clouddrive2':
+            self.client = CloudDriveClient(self.host, self.username, self.password)
+            self.fs = CloudDriveFileSystem(self.client)
+        elif self.provider == 'alist':
+            self.client = AlistClient(self.host, self.username, self.password)
+            self.fs = AlistFileSystem(self.client)
+        else:
+            raise NotImplementedError(f"The function connect_fs not implemented for provider {self.provider}")
 
     def init_app(self, app):
-        self.host = app.config['CLOUDDRIVE2_HOST']
-        self.username = app.config['CLOUDDRIVE2_USERNAME']
-        self.password = app.config['CLOUDDRIVE2_PASSWORD']
+        self.provider = app.config['STORAGE_PROVIDER']
+        self.host = app.config['STORAGE_HOST']
+        self.username = app.config['STORAGE_USERNAME']
+        self.password = app.config['STORAGE_PASSWORD']
         self.connect_fs()
         if not hasattr(app, 'extensions'):
             app.extensions = {}
-        app.extensions['clouddrive2'] = self
+        app.extensions['storage_client'] = self
 
     def attr(self, *args, **kwargs):
         return self.fs.attr(*args, **kwargs)
+
+    def is_dir(self, *args, **kwargs):
+        if self.provider == 'clouddrive2':
+            return self.attr(*args, **kwargs)['isDirectory']
+        elif self.provider == 'alist':
+            return self.attr(*args, **kwargs)['is_dir']
+        else:
+            raise NotImplementedError(f"The function is_dir not implemented for provider {self.provider}")
+
+    def get_mtime(self, *args, **kwargs):
+        return str(self.attr(*args, **kwargs)['mtime'])
 
     def walk_attr(self, *args, **kwargs):
         return self.fs.walk_attr(*args, **kwargs)

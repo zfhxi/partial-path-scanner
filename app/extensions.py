@@ -5,7 +5,7 @@ from flask_bcrypt import Bcrypt
 from flask_apscheduler import APScheduler
 
 
-from app.utils import FlaskCloudDrive2Wrapper
+from app.utils import FlaskStorageClientWrapper
 
 
 sqlite_db = SQLAlchemy()
@@ -13,5 +13,4 @@ redis_db = FlaskRedis()
 login_manager = LoginManager()
 scheduler = APScheduler()
 bcrypt = Bcrypt()
-cd2 = FlaskCloudDrive2Wrapper()
-# celery_wrapper = FlaskCeleryWrapper()
+storage_client = FlaskStorageClientWrapper()

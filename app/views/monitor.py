@@ -2,7 +2,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required
 from app.database import MonitoredFolder
-from app.extensions import sqlite_db, scheduler, redis_db, cd2
+from app.extensions import sqlite_db, scheduler, redis_db, storage_client
 
 from app.tasks import mtime_updating, manual_scan_bg
 from app.utils import (
@@ -93,7 +93,7 @@ def monitored_folder_add():
             monitored_folder=monitored_folder,
             servers_cfg=current_app.config['MEDIA_SERVERS'],
             scheduler=scheduler,
-            fs=cd2,
+            storage_client=storage_client,
             db=redis_db,
         )
         message = f"监控目录[{folder}]已添加！"
@@ -136,11 +136,10 @@ def monitored_folder_edit():
             message = f"监控目录[{folder}]已修改！"
 
         else:  # 修改了监控目录名
-            result = MonitoredFolder.query.get(folder)
+            result = MonitoredFolder.query.get(new_folder)
             if result:
                 return jsonify(status='error', message=f"监控目录[{new_folder}]已存在！终止修改。")
             MonitoredFolder.query.filter(MonitoredFolder.folder == folder).delete()
-            sqlite_db.session.commit()
             monitor_folder = MonitoredFolder(
                 folder=new_folder,
                 enabled=enabled,
@@ -159,7 +158,7 @@ def monitored_folder_edit():
             monitored_folder=monitored_folder,
             servers_cfg=current_app.config['MEDIA_SERVERS'],
             scheduler=scheduler,
-            fs=cd2,
+            storage_client=storage_client,
             db=redis_db,
         )
         logger.info(message)
@@ -195,7 +194,7 @@ def monitered_folder_edit_status():
                     monitored_folder=monitored_folder,
                     servers_cfg=current_app.config['MEDIA_SERVERS'],
                     scheduler=scheduler,
-                    fs=cd2,
+                    storage_client=storage_client,
                     db=redis_db,
                 )
         message = f"监控目录[{folder}]已{'启用' if new_enabled else '禁用'}！"
