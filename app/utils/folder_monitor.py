@@ -136,8 +136,8 @@ def path_scan_workder(
             this_logger.info(f"更新mtime: [{path}]=>{timestamp_to_datetime(new_mtime)}")
 
 
-def fs_walk(fs, top: str, blacklist=[], **kwargs):
-    for path, dirs, _ in fs.walk_attr(top, topdown=True, **kwargs):
+def fs_walk(storage_client, top: str, blacklist=[], **kwargs):
+    for path, dirs, _ in storage_client.walk_attr(top, topdown=True, **kwargs):
         _dirs = [
             d for d in dirs if not (d['path'] in blacklist or d['name'].startswith('.'))
         ]  # not valid when topdown=False
@@ -209,7 +209,8 @@ def folder_scan(
         this_logger=this_logger,
     )
     # 监测子目录、子文件
-    for root, _ in fs_walk(storage_client.fs, top=_folder, blacklist=_blacklist):
+    for root, _ in fs_walk(storage_client, top=_folder, blacklist=_blacklist):
+        storage_client.listdir_attr(os.path.dirname(root))  # 对父目录进行listdir，确保top的mtime被更新
         worker_partial(root)
         print(f"- {root}")
     try:
