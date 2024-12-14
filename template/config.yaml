@@ -29,14 +29,14 @@ databases:
         pool_timeout: 10 # 连接超时时间
         pool_size: 5 # 连接池大小
 storage_providers:
-    provider: "clouddrive2" # 选择cd2作为目录树遍历的存储提供者
+    provider: "clouddrive2" # 选择cd2作为目录树遍历的存储提供者[目前推荐clouddrive2]
     clouddrive2:
         # clouddrive2配置
         host: http://xxx.xxx.xxx.xxx:19798
         username: xxx@mail.com
         password: xxxxx
     alist:
-        # alist配置
+        # alist配置，如果选用了clouddrive2作为存储提供者，则下面参数可忽略
         host: http://xxx.xxx.xxx.xxx:5244
         username: xxxxx
         password: xxxxxxxxxx
@@ -46,7 +46,7 @@ media_servers:
         enabled: true # 若不使用plex，则设置为false
         host: http://xxx.xxxx.xxx.xxx:32400
         token: plex_token_here
-        isfile_based_scanning: true # 基于文件的扫描，目前观望此参数是否应弃用
+        isfile_based_scanning: false # 基于新增文件的扫描。若为false，当新增目录时，扫描新增的目录；当新增文件时，扫描其父目录。
         path_mapping:
             # 从clouddrive2的路径映射到媒体服务器内部的路径
             enabled: true # 若不使用路径映射，则设置为false
