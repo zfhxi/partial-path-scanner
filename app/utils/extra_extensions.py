@@ -44,11 +44,9 @@ class FlaskStorageClientWrapper(object):
         return str(self.attr(*args, **kwargs)['mtime'])
 
     def walk_attr(self, *args, **kwargs):
-        kwargs['refresh'] = True
         return self.fs.walk_attr(*args, **kwargs)
 
     def listdir_attr(self, *args, **kwargs):
-        kwargs['refresh'] = True
         return self.fs.listdir_attr(*args, **kwargs)
 
     def exists(self, *args, **kwargs):
