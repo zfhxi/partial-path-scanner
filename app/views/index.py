@@ -111,7 +111,7 @@ def file_noify():
 
     # 打印通知信息
     if len(notifications) > 0:
-        logger.warn(f"收到文件变更通知： {notifications}")
+        logger.warning(f"收到文件变更通知： {notifications}")
 
     # 响应
     return jsonify({"状态": "成功", "消息": "已接收文件系统通知"}), 200

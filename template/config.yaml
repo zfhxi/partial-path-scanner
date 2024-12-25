@@ -82,7 +82,7 @@ media_servers:
             enable_copy_metadata: true # 允许复制网盘的元数据文件到STRM目录。会减慢生成strm的速度。
             enable_clean_invalid_strm: true # 允许清理无效的strm
             enable_clean_invalid_folders: true # 允许清理无效的文件夹
-            enable_clean_invalid_metadata: true # 允许清理无效的元数据
+            enable_clean_invalid_metadata: false # 允许清理无效的元数据
 
         path_mapping:
             # 从clouddrive2的路径映射到媒体服务器内部的STRM对应路径

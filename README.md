@@ -10,7 +10,9 @@
 
 ![目录浏览](./img/files.png)
 
-**基于clouddrive2的webhook实时监控预览图（占位中）**
+**基于clouddrive2的webhook实时监控日志**
+
+![webhook](./img/webhook_log.png)
 
 
 ## 免责声明
@@ -135,6 +137,19 @@ services:
 2. 当你使用`plex`、`emby`类型的媒体服务器时，本程序根据传递的信息，将相应目录映射后进行局部扫描。
 3. 当你使用`embystrm`类型的媒体服务器时，本程序会根据传入的变更信息，先生成`.strm`文件，然后再局部扫描生成的strm文件。
 
+**embystrm的补充说明**
+假设config.yaml对strm的映射如下：
+```yaml
+root_mapping:
+    # strm根目录的映射配置
+    - src: /115/Public # 网盘115在cd2中的根路径
+    dest: /mnt/user/00Media/STRM/115 # STRM存储根路径
+    mount: /mnt/user/CloudDrive/115 # 网盘115通过cd2挂载到本地的根路
+```
+那么：
+* 媒体文件：`/115/Public/电视/国外剧/京城怪物 (2023){tmdb-135238}/Season 1/京城怪物 - S01E01 - 纳人.strm`
+* 会生成对应strm文件： `/mnt/user/00Media/STRM/115/电视/国外剧/京城怪物 (2023){tmdb-135238}/Season 1/京城怪物 - S01E01 - 纳人.strm`
+* strm中的内容记录的是clouddrive2挂载到本地后，媒体文件在本地的路径：`/mnt/user/CloudDrive/115/电视/国外剧/京城怪物 (2023){tmdb-135238}/Season 1/京城怪物 - S01E01 - 纳人.mkv`
 
 
 ## nginx反向代理

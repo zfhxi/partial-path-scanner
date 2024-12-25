@@ -59,7 +59,6 @@ class StrmProcessor:
         return rule_set
 
     def process_file(self, file_path, src_root, dest_root, mount_root):
-        # logger.warn(f"处理文件: {file_path}")
         file_extension = os.path.splitext(file_path)[1].lower()
         # 获取strm文件/元数据文件的目标目录
         target_path = os.path.dirname(file_path).replace(src_root, dest_root, 1)
@@ -94,7 +93,7 @@ class StrmProcessor:
                 return False  # "复制元数据文件"
 
     def process_deleting_file(self, file_path, src_root, dest_root, mount_root):
-        # logger.warn(f"处理文件: {file_path}")
+        # logger.warning(f"处理文件: {file_path}")
         file_extension = os.path.splitext(file_path)[1].lower()
         # 获取strm文件/元数据文件的目标目录
         target_path = os.path.dirname(file_path).replace(src_root, dest_root, 1)
@@ -113,7 +112,7 @@ class StrmProcessor:
                 os.remove(target_file_path)
 
     def cleanup_invalid_strm(self, net_folder, strm_folder):
-        logger.warn("开始清理失效的.strm文件...")
+        logger.warning("开始清理失效的.strm文件...")
         for root, _, files in os.walk(strm_folder):
             for file in files:
                 if file.endswith('.strm'):
@@ -137,7 +136,7 @@ class StrmProcessor:
                         logger.info(f"删除失效的.strm文件: {strm_file_path}")
 
     def cleanup_invalid_folders(self, src_folder, dest_folder):
-        logger.warn("开始清理失效的文件夹...")
+        logger.warning("开始清理失效的文件夹...")
         for root, dirs, _ in os.walk(dest_folder, topdown=False):
             for _dir in dirs:
                 target_dir_path = os.path.normpath(os.path.join(root, _dir))
@@ -147,7 +146,7 @@ class StrmProcessor:
                     logger.info(f"删除失效的文件夹: {target_dir_path}")
 
     def cleanup_invalid_metadata(self, src_folder, dest_folder):
-        logger.warn("开始清理失效的元数据文件...")
+        logger.warning("开始清理失效的元数据文件...")
         for root, _, files in os.walk(dest_folder):
             for file in files:
                 file_extension = os.path.splitext(file)[1].lower()
@@ -178,7 +177,7 @@ class StrmProcessor:
             yield [CloudDrivePath(self.fs, **a) for a in files]
 
     def run(self, path, **kwargs):
-        logger.warn(f"开始处理路径: {path}...")
+        logger.warning(f"开始处理路径: {path}...")
         self.generated_strm_files.clear()
         # 从strm路径映射回cd2中的路径
         deleted = kwargs.get('deleted', False)
@@ -195,7 +194,9 @@ class StrmProcessor:
         ext = os.path.splitext(path)[1]
         if ext == '' or ext not in self.known_file_exts:  # 如果是文件夹
             if deleted:
-                shutil.rmtree(path.replace(src_folder, dest_folder, 1))
+                need_deleting_path = path.replace(src_folder, dest_folder, 1)
+                shutil.rmtree(need_deleting_path)
+                logger.info(f"清理失效路径：{need_deleting_path}")
             else:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                     for files in self.fs_walk_files(src_folder):
