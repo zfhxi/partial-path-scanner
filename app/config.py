@@ -86,6 +86,12 @@ class BaseConfig(object):
         self.MEDIA_SERVERS = read_deepvalue(self._config, 'media_servers')
         self.UPDATE_MTIME_ON_STARTUP = str2bool(os.getenv('UPDATE_MTIME_ON_STARTUP', 'False'))
         self.UPDATE_MTIME_OF_ALL = str2bool(os.getenv('UPDATE_MTIME_OF_ALL', 'False'))
+        # 文件变更处理器的配置
+        self.FC_HANDLER_ALLOWED_EXTS = read_deepvalue(self._config, 'flask', 'filechangehandler', 'allowed_exts')
+        self.FC_HANDLER_ALLOWED_PATH_KEYWORDS = read_deepvalue(
+            self._config, 'flask', 'filechangehandler', 'allowed_path_keywords'
+        )
+        self.FC_HANDLER_TIMER_INTERVAL = read_deepvalue(self._config, 'flask', 'filechangehandler', 'timer_interval')
 
 
 class DevConfig(BaseConfig):

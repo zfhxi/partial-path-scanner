@@ -12,7 +12,6 @@ from app.utils import (
     FolderBaseSchema,
     getLogger,
     create_folder_scheduler,
-    manual_scan,
     sort_list_by_pinyin,
     str2bool,
 )
@@ -295,8 +294,8 @@ def scan_folder_unconditionally():
     except Exception as e:
         return jsonify(status='error', message=str(e))
     folder = data['folder']
-    # rval, message = manual_scan(folder, current_app.config['MEDIA_SERVERS'], cd2, redis_db)
     try:
+        # '''
         task = manual_scan_bg.apply_async(args=[folder, current_app.config['MEDIA_SERVERS']])
         if task:
             message = f"已提交手动扫描路径[{folder}]的后台任务！, 任务ID：{task.id}"
@@ -304,6 +303,10 @@ def scan_folder_unconditionally():
             raise Exception(f"创建手动扫描路径[{folder}]后台任务失败！{e}")
         logger.info(message)
         rval = True
+        # '''
+        '''
+        rval, message = manual_scan(folder, current_app.config['MEDIA_SERVERS'], storage_client, redis_db)
+        # '''
     except Exception as e:
         message = e
         rval = False

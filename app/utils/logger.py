@@ -44,7 +44,11 @@ class FileHandlerFilter(logging.Filter):
 formatter_options = dict(fmt=formatter_string, datefmt=coloredlogs.DEFAULT_DATE_FORMAT)
 console_formatter_obj = coloredlogs.ColoredFormatter(**formatter_options)
 file_formatter_obj = coloredlogs.BasicFormatter(**formatter_options)
-fileHandler = logging.FileHandler(f"{os.path.dirname(os.path.abspath(__file__))}/../../log/app.log")
+log_dir = f"{os.path.dirname(os.path.abspath(__file__))}/../../log"
+if not os.path.exists(log_dir):
+    print(f"创建日志文件夹: {log_dir}")
+    os.mkdir(log_dir)
+fileHandler = logging.FileHandler(f"{log_dir}/app.log")
 fileHandler.setFormatter(file_formatter_obj)
 # consoleHandler = logging.StreamHandler()
 # consoleHandler.setFormatter(console_formatter_obj)

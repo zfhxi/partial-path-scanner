@@ -12,9 +12,15 @@ from .schema import (
 
 from .data_types import Json
 
-from .extra_extensions import FlaskStorageClientWrapper, FlaskCeleryWrapper
+from .extra_extensions import FlaskStorageClientWrapper, FlaskCeleryWrapper, FlaskFileChangeHandlerWrapper
 from .scanner import PlexScanner, EmbyScanner
-from .folder_monitor import create_folder_scheduler, manual_scan, folder_scan
+from .folder_monitor import (
+    create_folder_scheduler,
+    manual_scan,
+    folder_scan,
+    manual_scan_dest_pathlist,
+    manual_scan_deleted_pathlist,
+)
 from .sort import sort_list_by_pinyin, sort_list_mixedversion
 from .pytimeparse import timeparse
 

@@ -5,7 +5,7 @@ from flask_bcrypt import Bcrypt
 from flask_apscheduler import APScheduler
 
 
-from app.utils import FlaskStorageClientWrapper
+from app.utils import FlaskStorageClientWrapper, FlaskFileChangeHandlerWrapper
 
 
 sqlite_db = SQLAlchemy()
@@ -14,3 +14,4 @@ login_manager = LoginManager()
 scheduler = APScheduler()
 bcrypt = Bcrypt()
 storage_client = FlaskStorageClientWrapper()
+fc_handler = FlaskFileChangeHandlerWrapper()

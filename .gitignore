@@ -19,6 +19,8 @@ __pycache__/
 
 # Celery task results
 celerybeat-schedule
+celerybeat-schedule.*
 # supervisord 
 supervisord.pid
 supervisord.log
+supervisord.conf

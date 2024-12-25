@@ -2,7 +2,7 @@ import os
 from .pytimeparse import timeparse
 from .others import timestamp_to_datetime, str2bool, read_deepvalue
 from .logger import getLogger
-from .scanner import PlexScanner, EmbyScanner
+from .scanner import PlexScanner, EmbyScanner, EmbyStrmScanner
 
 from datetime import datetime
 import functools
@@ -30,6 +30,9 @@ class ScanningPool(object):
             self.scanners.append(PlexScanner(self.media_servers_cfg['plex']))
         if 'emby' in servers and str2bool(read_deepvalue(self.media_servers_cfg, 'emby', 'enabled')):
             self.scanners.append(EmbyScanner(self.media_servers_cfg['emby']))
+        if 'embystrm' in servers and str2bool(read_deepvalue(self.media_servers_cfg, 'embystrm', 'enabled')):
+            _scanner = EmbyStrmScanner(self.media_servers_cfg['embystrm'], self.storage_client.fs)
+            self.scanners.append(_scanner)
 
     def put(self, mtime, mtime_path, sub_folders):
         if type(sub_folders) == list:
@@ -103,12 +106,60 @@ class ScanningPool(object):
             if mtimepath_scanned_marks[mtimepath] and not cache_isfile.get(
                 mtimepath, False
             ):  # 如果mtimepath为文件，则不更新mtime
-                self.db.set(mtimepath, self.mtimepath2mtime[mtimepath])
-                # logger.info(f"更新[{mtimepath}]的mtime为{timestamp_to_datetime(self.mtimepath2mtime[mtimepath])}")
-                self.logger.info(f"更新mtime: [{mtimepath}]=>{timestamp_to_datetime(self.mtimepath2mtime[mtimepath])}")
+                _mtime = self.mtimepath2mtime[mtimepath]
+                if _mtime:
+                    self.db.set(mtimepath, _mtime)
+                    self.logger.info(f"更新mtime: [{mtimepath}]=>{timestamp_to_datetime(_mtime)}")
 
         self.wait_updating_mtimepaths.clear()
         self.mtimepath2mtime.clear()
+        self.pool.clear()
+
+
+class ScanningPool4DeletedPaths(ScanningPool):
+    def __init__(self, servers_cfg, storage_client, db, this_logger=logger):
+        super().__init__(servers_cfg, storage_client, db, this_logger)
+
+    def put(self, sub_folders):
+        if type(sub_folders) == list:
+            self.pool.extend(sub_folders)
+        elif type(sub_folders) == str:
+            self.pool.append(sub_folders)
+        else:
+            raise TypeError(f"Invalid path type: {type(sub_folders)}")
+
+    def finish_scan(self):
+        queue = set(self.pool)
+        if len(queue) <= 0:
+            return
+        # 基于文件扫描的队列
+        file_based_queue = list(queue)
+        # 构建基于目录扫描的队列
+        path_based_queue = []
+        for _p in queue:
+            if os.path.splitext(_p)[1] != '':  # FIXME: 通过splitext来粗略判断是否为文件夹，并不能百分百准确
+                parent_of_p = os.path.dirname(_p)
+                path_based_queue.append(parent_of_p)
+            else:
+                path_based_queue.append(_p)
+        path_based_queue = list(set(path_based_queue))
+        # 开始扫描
+        for _scanner in self.scanners:
+            self.logger.info(f"Scanning on {_scanner.server_type} media server...")
+            if _scanner.isfile_based_scanning:
+                for _f in file_based_queue:
+                    rval = _scanner.scan_path(_f, deleted=True)
+                    if not rval:
+                        self.logger.error(f"扫描[{_f}]失败。")
+                    else:
+                        self.logger.warning(f"{_f}")
+            else:
+                for _p in path_based_queue:
+                    rval = _scanner.scan_path(_p, deleted=True)
+                    if not rval:
+                        self.logger.error(f"扫描[{_p}]失败。")
+                    else:
+                        self.logger.warning(f"{_p}")
         self.pool.clear()
 
 
@@ -279,3 +330,28 @@ def manual_scan(scan_path, servers_cfg, storage_client, db):
     except Exception as e:
         logger.error(f"Error: {e}")
         return False, str(e)
+
+
+def manual_scan_dest_pathlist(path_list, servers_cfg, storage_client, db, this_logger=logger):
+    scanning_pool = ScanningPool(servers_cfg=servers_cfg, storage_client=storage_client, db=db, this_logger=this_logger)
+    for p in path_list:
+        mtime = storage_client.get_mtime(p)
+        scanning_pool.put(mtime, p, p)
+    try:
+        scanning_pool.finish_scan()
+    except Exception as e:
+        this_logger.error(f"Error: {e}")
+
+
+def manual_scan_deleted_pathlist(path_list, servers_cfg, storage_client, db, this_logger=logger):
+    scanning_pool = ScanningPool4DeletedPaths(
+        servers_cfg=servers_cfg, storage_client=storage_client, db=db, this_logger=this_logger
+    )
+    for p in path_list:
+        if os.path.splitext(p)[1] == '':
+            db.delete(p)
+        scanning_pool.put(p)
+    try:
+        scanning_pool.finish_scan()
+    except Exception as e:
+        this_logger.error(f"Error: {e}")

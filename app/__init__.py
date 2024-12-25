@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from flask_cors import CORS
 from app.models import LoginUser
-from app.extensions import redis_db, sqlite_db, login_manager, bcrypt, scheduler, storage_client
+from app.extensions import redis_db, sqlite_db, login_manager, bcrypt, scheduler, storage_client, fc_handler
 from app.views import auth_bp, monitor_bp, files_bp, index_bp, logs_bp
 from app.database import User, MonitoredFolder
 from app.utils import folder_scan, create_folder_scheduler, getLogger, setLogger
@@ -74,6 +74,8 @@ def register_extensions(app):
     storage_client.init_app(app)
     # 注册celery
     # celery_wrapper.init_app(app)
+    # 注册文件变更处理器
+    fc_handler.init_app(app)
 
 
 # 所有蓝图注册
@@ -149,10 +151,6 @@ def celery_init_app(app: Flask) -> Celery:
 
     celery_app = Celery(app.name, task_cls=FlaskTask)
     celery_app.config_from_object(app.config["CELERY"])
-    # celery_app.conf.update(
-    #     broker_url=app.config["CELERY_BROKER_URL"],
-    #     result_backend=app.config["CELERY_RESULT_BACKEND"],
-    # )
     celery_app.conf.update(
         # worker_concurrency=4,
         broker_transport_options={

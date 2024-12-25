@@ -6,11 +6,15 @@ flask:
     # 登录页面的用户名和密码
     username: "admin"
     password: "admin"
-    # 调度器的配置，以下参数均无需修改
     scheduler:
+        # 调度器的配置，以下参数均无需修改
         timezone: "Asia/Shanghai" # 时区
         api_enabled: true # 是否启用API
         default_interval: 1d # 默认执行间隔，单位m/h/d，分别对应分钟/小时/天，更多请参考https://github.com/wroberts/pytimeparse 程序暂未调用此参数
+    filechangehandler:
+        timer_interval: 10 # 无需修改。监控文件变更时，处理变动文件的定时执行间隔（单位秒）。
+        allowed_exts: [ '.mkv', '.mp4', '.avi', '.rmvb', '.ts', '.flv', '.jpg', '.jpeg', '.png', '.ass', '.srt' ] # 一般无需修改。用以过滤文件变更通知。
+        allowed_path_keywords: [ "/115/Public" ] # 需要修改！用来过滤文件变更通知，此处表示仅接受来自路径/115/Public/xxxx的文件变更通知。
 databases:
     # 程序所需要的数据库配置,如果你不懂参数的含义，请不要修改
     redis:
@@ -23,27 +27,22 @@ databases:
         pool_enabled: true # 是否启用连接池
         # celery配置
         celery_broker_db: 1
-        celery_result_db: 2
+        celery_result_db: 1
     sqlite:
         path: "app.sqlite" # /config路径下的sqlite数据库文件路径
         pool_timeout: 10 # 连接超时时间
         pool_size: 5 # 连接池大小
 storage_providers:
-    provider: "clouddrive2" # 选择cd2作为目录树遍历的存储提供者[目前推荐clouddrive2]
+    provider: "clouddrive2" # 选择cd2作为目录树遍历的存储提供者[目前仅对clouddrive2做优化]
     clouddrive2:
         # clouddrive2配置
         host: http://xxx.xxx.xxx.xxx:19798
         username: xxx@mail.com
         password: xxxxx
-    alist:
-        # alist配置，如果选用了clouddrive2作为存储提供者，则下面参数可忽略
-        host: http://xxx.xxx.xxx.xxx:5244
-        username: xxxxx
-        password: xxxxxxxxxx
 media_servers:
-    # 媒体服务器配置
+    # 媒体服务器配置，如果emby和embystrm的host相同，请不要同时开启！
     plex:
-        enabled: true # 若不使用plex，则设置为false
+        enabled: false # 若启用plex，则设置为true
         host: http://xxx.xxxx.xxx.xxx:32400
         token: plex_token_here
         isfile_based_scanning: false # 基于新增文件的扫描。若为false，当新增目录时，扫描新增的目录；当新增文件时，扫描其父目录。
@@ -54,12 +53,39 @@ media_servers:
               - from: /115/Public
                 to: /share/SSD1T/03cd2/115
     emby:
-        enabled: true # 若不使用emby，则设置为false
+        enabled: false # 若启用了embystrm并与其host相同，此处请设置为false
         host: https://emby.example.com
         api_key: emby_api_key_here
         isfile_based_scanning: true
         path_mapping:
+            # 从clouddrive2的路径映射到媒体服务器内部的路径
             enabled: true
             rules:
               - from: /115/Public
                 to: /mnt/user/CloudDrive/115
+    embystrm:
+        enabled: true # 此处启用后，请将上面的"emby"设置为false
+        host: https://emby.example.com
+        api_key: emby_api_key_here
+        isfile_based_scanning: true
+        strm:
+            root_mapping:
+              # strm根目录的映射配置
+              - src: /115/Public # 网盘115在cd2中的根路径
+                dest: /mnt/user/00Media/STRM/115 # STRM存储根路径
+                mount: /mnt/user/CloudDrive/115 # 网盘115通过cd2挂载到本地的根路径
+            # video_exts和metadata_exts一般无需修改
+            video_exts: [ '.mkv', '.mp4', '.avi', '.rmvb', '.ts', '.flv' ]
+            metadata_exts: [ '.nfo', '.jpg', '.jpeg', '.png', '.ass', '.srt' ]
+            # 以下的参数，按需修改
+            enable_copy_metadata: true # 允许复制网盘的元数据文件到STRM目录。会减慢生成strm的速度。
+            enable_clean_invalid_strm: true # 允许清理无效的strm
+            enable_clean_invalid_folders: true # 允许清理无效的文件夹
+            enable_clean_invalid_metadata: true # 允许清理无效的元数据
+
+        path_mapping:
+            # 从clouddrive2的路径映射到媒体服务器内部的STRM对应路径
+            enabled: true
+            rules:
+              - from: /115/Public
+                to: /mnt/user/00Media/STRM/115 # emby容器中strm对应路径
