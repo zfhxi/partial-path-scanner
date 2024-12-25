@@ -90,7 +90,15 @@ def file_noify():
         src_ext = os.path.splitext(source_file)[1]
         action_cn = fc_handler.translate_action(item.get("action", "未知"), source_file, destination_file)
         is_dir_cn = "目录" if item.get("is_dir") == "true" else "文件"
-        if is_dir_cn == "文件" and src_ext not in fc_handler.allowed_extensions:
+        # 过滤“文件变更”
+        path_not_allowed = True
+        for kw in fc_handler.allowed_keywords:
+            if kw in source_file or kw in destination_file:
+                path_not_allowed = False
+                break
+        if path_not_allowed:
+            continue
+        elif is_dir_cn == "文件" and src_ext not in fc_handler.allowed_extensions:
             continue
 
         notification = {"动作": action_cn, "类型": is_dir_cn, "源路径": source_file, "目标路径": destination_file}
