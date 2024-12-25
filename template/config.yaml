@@ -78,6 +78,7 @@ media_servers:
             video_exts: [ '.mkv', '.mp4', '.avi', '.rmvb', '.ts', '.flv' ]
             metadata_exts: [ '.nfo', '.jpg', '.jpeg', '.png', '.ass', '.srt' ]
             # 以下的参数，按需修改
+            max_workers: 4 # 生成strm所使用的线程数，不建议改太大，否则可能同时产生大量下载
             enable_copy_metadata: true # 允许复制网盘的元数据文件到STRM目录。会减慢生成strm的速度。
             enable_clean_invalid_strm: true # 允许清理无效的strm
             enable_clean_invalid_folders: true # 允许清理无效的文件夹

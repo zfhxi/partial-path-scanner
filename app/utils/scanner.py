@@ -5,11 +5,9 @@ from plexapi.server import PlexServer
 from urllib.parse import quote_plus
 import requests
 from requests import RequestException
-
-# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-# from utils import getLogger
 from app.utils import getLogger
-
+import concurrent.futures
+from clouddrive import CloudDrivePath
 
 logger = getLogger(__name__)
 
@@ -41,6 +39,7 @@ def get_path_mapping_rules(server_config):
 class StrmProcessor:
     def __init__(self, strm_config, fs) -> None:
         self.strm_cnf = strm_config
+        self.max_workers = int(self.strm_cnf.get("max_workers", 1))
         self.video_exts = self.strm_cnf.get("video_exts", [])
         self.metadata_exts = self.strm_cnf.get("metadata_exts", [])
         self.enable_copy_metadata = self.strm_cnf.get("enable_copy_metadata", False)
@@ -112,13 +111,27 @@ class StrmProcessor:
             if os.path.exists(target_file_path):
                 os.remove(target_file_path)
 
-    def cleanup_invalid_strm(self, strm_folder):
+    def cleanup_invalid_strm(self, net_folder, strm_folder):
         logger.warn("开始清理失效的.strm文件...")
         for root, _, files in os.walk(strm_folder):
             for file in files:
                 if file.endswith('.strm'):
                     strm_file_path = os.path.normpath(os.path.join(root, file))
-                    if strm_file_path not in self.generated_strm_files:
+                    _need_deleted = True
+                    if strm_file_path in self.generated_strm_files:  # 如果刚才已生产此strm文件
+                        _need_deleted = False
+                    else:  # 如果刚才没生成strm文件，但有可能其他线程监听时生成了该strm文件
+                        try:
+                            with open(strm_file_path, 'r', encoding='utf-8') as existing_strm:
+                                existing_url = existing_strm.read().strip()
+                                net_file_path = strm_file_path.replace(".strm", os.path.splitext(existing_url)[1], 1)
+                                net_file_path = net_file_path.replace(strm_folder, net_folder, 1)
+                                if self.fs.exists(net_file_path):
+                                    _need_deleted = False
+                        except Exception as e:
+                            logger.error(f"检测strm有效性失败！{e}")
+                            _need_deleted = False
+                    if _need_deleted:
                         os.remove(strm_file_path)
                         logger.info(f"删除失效的.strm文件: {strm_file_path}")
 
@@ -144,6 +157,14 @@ class StrmProcessor:
                     if not self.fs.exists(source_file_path):
                         os.remove(target_file_path)
                         logger.info(f"删除失效的元数据文件: {target_file_path}")
+
+    def fs_walk_files(self, top: str, blacklist=[], **kwargs):
+        for _, dirs, files in self.fs.walk_attr(top, topdown=True, **kwargs):
+            _dirs = [
+                d for d in dirs if not (d['path'] in blacklist or d['name'].startswith('.'))
+            ]  # not valid when topdown=False
+            dirs[:] = _dirs
+            yield [CloudDrivePath(self.fs, **a) for a in files]
 
     def run(self, path, **kwargs):
         logger.warn(f"开始处理路径: {path}...")
@@ -171,13 +192,14 @@ class StrmProcessor:
                 # self.process_deleting_file(path, src_folder, dest_folder, mount_folder)
                 shutil.rmtree(path.replace(src_folder, dest_folder, 1))
             else:
-                for _path, dirs, files in self.fs.walk_path(src_folder):
-                    for file in files:
-                        file_path = file.fullPathName
-                        self.process_file(file_path, src_folder, dest_folder, mount_folder)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                    for files in self.fs_walk_files(src_folder):
+                        for file in files:
+                            file_path = file.fullPathName
+                            executor.submit(self.process_file, file_path, src_folder, dest_folder, mount_folder)
 
             if self.enable_clean_invalid_strm:
-                self.cleanup_invalid_strm(dest_folder)
+                self.cleanup_invalid_strm(src_folder, dest_folder)
 
             if self.enable_clean_invalid_folders:
                 self.cleanup_invalid_folders(src_folder, dest_folder)

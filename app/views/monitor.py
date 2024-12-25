@@ -4,7 +4,7 @@ from flask_login import login_required
 from app.database import MonitoredFolder
 from app.extensions import sqlite_db, scheduler, redis_db, storage_client
 
-from app.tasks import mtime_updating, manual_scan_bg
+from app.tasks import mtime_updating, manual_scan, manual_scan_bg
 from app.utils import (
     MonitoredFolderDataSchema,
     EditMonitoredFolderDataSchema,
@@ -294,8 +294,8 @@ def scan_folder_unconditionally():
     except Exception as e:
         return jsonify(status='error', message=str(e))
     folder = data['folder']
+    # '''
     try:
-        # '''
         task = manual_scan_bg.apply_async(args=[folder, current_app.config['MEDIA_SERVERS']])
         if task:
             message = f"已提交手动扫描路径[{folder}]的后台任务！, 任务ID：{task.id}"
@@ -303,11 +303,11 @@ def scan_folder_unconditionally():
             raise Exception(f"创建手动扫描路径[{folder}]后台任务失败！{e}")
         logger.info(message)
         rval = True
-        # '''
-        '''
-        rval, message = manual_scan(folder, current_app.config['MEDIA_SERVERS'], storage_client, redis_db)
-        # '''
     except Exception as e:
         message = e
         rval = False
+    # '''
+    '''
+    rval, message = manual_scan(folder, current_app.config['MEDIA_SERVERS'], storage_client, redis_db)
+    # '''
     return jsonify(status='success' if rval else 'error', message=message)
