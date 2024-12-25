@@ -49,6 +49,7 @@ class StrmProcessor:
         self.strm_root_mapping_rules = self.get_strm_root_mapping_rules()
         self.generated_strm_files = set()
         self.fs = fs
+        self.known_file_exts = self.video_exts + self.metadata_exts
 
     def get_strm_root_mapping_rules(self):
         rule_set = []
@@ -158,6 +159,16 @@ class StrmProcessor:
                         os.remove(target_file_path)
                         logger.info(f"删除失效的元数据文件: {target_file_path}")
 
+    def clean_invalid(self, src_folder, dest_folder):
+        if self.enable_clean_invalid_strm:
+            self.cleanup_invalid_strm(src_folder, dest_folder)
+
+        if self.enable_clean_invalid_folders:
+            self.cleanup_invalid_folders(src_folder, dest_folder)
+
+        if self.enable_clean_invalid_metadata:
+            self.cleanup_invalid_metadata(src_folder, dest_folder)
+
     def fs_walk_files(self, top: str, blacklist=[], **kwargs):
         for _, dirs, files in self.fs.walk_attr(top, topdown=True, **kwargs):
             _dirs = [
@@ -180,16 +191,10 @@ class StrmProcessor:
                 mount_folder = mount_folder.replace(rule[0], rule[2], 1)
                 break
         # if not self.fs.attr(path)['isDirectory']:  # 如果是文件
-        if os.path.splitext(path)[1] != '':  # FIXME: 通过splitext来粗略判断是否为文件夹，并不能百分百准确
-            src_folder = os.path.dirname(src_folder)
-            dest_folder = os.path.dirname(dest_folder)
+        # FIXME: 通过splitext来粗略判断是否为文件夹，并不能百分百准确
+        ext = os.path.splitext(path)[1]
+        if ext == '' or ext not in self.known_file_exts:  # 如果是文件夹
             if deleted:
-                self.process_deleting_file(path, src_folder, dest_folder, mount_folder)
-            else:
-                self.process_file(path, src_folder, dest_folder, mount_folder)
-        else:  # 如果是文件夹
-            if deleted:
-                # self.process_deleting_file(path, src_folder, dest_folder, mount_folder)
                 shutil.rmtree(path.replace(src_folder, dest_folder, 1))
             else:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -197,15 +202,15 @@ class StrmProcessor:
                         for file in files:
                             file_path = file.fullPathName
                             executor.submit(self.process_file, file_path, src_folder, dest_folder, mount_folder)
-
-            if self.enable_clean_invalid_strm:
-                self.cleanup_invalid_strm(src_folder, dest_folder)
-
-            if self.enable_clean_invalid_folders:
-                self.cleanup_invalid_folders(src_folder, dest_folder)
-
-            if self.enable_clean_invalid_metadata:
-                self.cleanup_invalid_metadata(src_folder, dest_folder)
+            # 清理失效文件（夹）
+            self.clean_invalid(src_folder, dest_folder)
+        else:  # 如果是文件
+            src_folder = os.path.dirname(src_folder)
+            dest_folder = os.path.dirname(dest_folder)
+            if deleted:
+                self.process_deleting_file(path, src_folder, dest_folder, mount_folder)
+            else:
+                self.process_file(path, src_folder, dest_folder, mount_folder)
 
         logger.info("处理完成！")
 

@@ -119,6 +119,9 @@ class ScanningPool(object):
 class ScanningPool4DeletedPaths(ScanningPool):
     def __init__(self, servers_cfg, storage_client, db, this_logger=logger):
         super().__init__(servers_cfg, storage_client, db, this_logger)
+        _video_exts = servers_cfg.get('strm', {}).get('video_exts', [])
+        _metadata_exts = servers_cfg.get('strm', {}).get('metadata_exts', [])
+        self.known_file_exts = _video_exts + _metadata_exts
 
     def put(self, sub_folders):
         if type(sub_folders) == list:
@@ -137,11 +140,13 @@ class ScanningPool4DeletedPaths(ScanningPool):
         # 构建基于目录扫描的队列
         path_based_queue = []
         for _p in queue:
-            if os.path.splitext(_p)[1] != '':  # FIXME: 通过splitext来粗略判断是否为文件夹，并不能百分百准确
+            ext = os.path.splitext(_p)[1]
+            # FIXME: 通过splitext来粗略判断是否为文件夹，并不能百分百准确
+            if ext == '' or ext not in self.known_file_exts:
+                path_based_queue.append(_p)
+            else:
                 parent_of_p = os.path.dirname(_p)
                 path_based_queue.append(parent_of_p)
-            else:
-                path_based_queue.append(_p)
         path_based_queue = list(set(path_based_queue))
         # 开始扫描
         for _scanner in self.scanners:
@@ -347,8 +352,11 @@ def manual_scan_deleted_pathlist(path_list, servers_cfg, storage_client, db, thi
     scanning_pool = ScanningPool4DeletedPaths(
         servers_cfg=servers_cfg, storage_client=storage_client, db=db, this_logger=this_logger
     )
+    _knwon_file_exts = scanning_pool.known_file_exts
     for p in path_list:
-        if os.path.splitext(p)[1] == '':
+        ext = os.path.splitext(p)[1]
+        # FIXME: 通过splitext来粗略判断是否为文件夹，并不能百分百准确
+        if ext == '' or ext not in _knwon_file_exts:
             db.delete(p)
         scanning_pool.put(p)
     try:

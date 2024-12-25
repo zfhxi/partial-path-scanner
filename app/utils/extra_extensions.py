@@ -175,8 +175,8 @@ class FlaskFileChangeHandlerWrapper(object):
         if not any(keyword in path for keyword in self.allowed_keywords):
             return False
         # FIXME: 通过splitext来粗略判断是否为文件夹，并不能百分百准确
-        _, ext = os.path.splitext(path)
-        if ext == '':  # 是文件夹
+        ext = os.path.splitext(path)[1]
+        if ext == '' or ext not in self.allowed_extensions:  # 是文件夹
             return True
         return ext.lower() in self.allowed_extensions
 
