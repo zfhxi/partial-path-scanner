@@ -154,7 +154,6 @@ class FlaskFileChangeHandlerWrapper(object):
         if len(self.dest_filepool) == 0:
             return
 
-        print("开始处理文件变动...")
         _func(self.dest_filepool)
         # 清空记录
         self.dest_filepool.clear()
@@ -163,7 +162,6 @@ class FlaskFileChangeHandlerWrapper(object):
         if len(self.src_filepool) == 0:
             return
 
-        print("开始处理文件变动...")
         _func(self.src_filepool)
         # 清空记录
         self.src_filepool.clear()

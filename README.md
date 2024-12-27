@@ -174,7 +174,7 @@ location /flower {
 
 ## 局限性
 
-**最近115风控厉害，建议cd2中115的maxQueriesPerSecond参数调小（如0.9），尽管这样会导致遍历目录树时间加长，但可以缓解风控。**
+**最近115风控得更加厉害了，建议cd2中115的maxQueriesPerSecond参数调小（如0.9以下）。**
 
 ## TODO
 

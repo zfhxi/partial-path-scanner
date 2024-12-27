@@ -268,7 +268,6 @@ def folder_scan(
     for root, _ in fs_walk(storage_client, top=_folder, blacklist=_blacklist):
         storage_client.listdir_attr(os.path.dirname(root))  # 对父目录进行listdir，确保top的mtime被更新
         worker_partial(root)
-        print(f"- {root}")
     try:
         scanning_pool.finish_scan()
     except Exception as e:
