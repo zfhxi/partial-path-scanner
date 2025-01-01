@@ -208,6 +208,7 @@ class StrmProcessor:
         else:  # 如果是文件
             src_folder = os.path.dirname(src_folder)
             dest_folder = os.path.dirname(dest_folder)
+            mount_folder = os.path.dirname(mount_folder)
             if deleted:
                 self.process_deleting_file(path, src_folder, dest_folder, mount_folder)
             else:
