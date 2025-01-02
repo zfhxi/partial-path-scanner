@@ -276,6 +276,7 @@ class PlexScanner:
                 # logger.info(f"[PLEX] Scanning the library[{lib_title}] - path[{path}]")
                 self.pms.query(f"/library/sections/{lib_key}/refresh?path={quote_plus(Path(path).as_posix())}")
                 time.sleep(1)
+                logger.warning(f"- {path}")
                 return True
             else:
                 logger.error(f"[PLEX] Unable to find a library for the path[{path}]!")
@@ -350,8 +351,7 @@ class EmbyScanner:
             )
             time.sleep(1)
             if command.status_code == 204:
-                # logger.info(f"[{self.server_type.upper()}] Scanning the path[{directory}]")
-                pass
+                logger.warning(f"- {path}")
                 return True
             else:
                 logger.error(f"Failed to scan the path[{path}]!")
@@ -388,6 +388,7 @@ class EmbyStrmScanner(EmbyScanner):
             )
             time.sleep(1)
             if command.status_code == 204:
+                logger.warning(f"- {path}")
                 return True
             else:
                 logger.error(f"Failed to scan the path[{path}]!")

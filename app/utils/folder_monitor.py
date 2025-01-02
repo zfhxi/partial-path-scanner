@@ -92,7 +92,8 @@ class ScanningPool(object):
                         mtimepath_scanned_marks[mtime_p] = False
                         self.logger.error(f"扫描[{_f}]失败，将不更新目录[{mtime_p}]的mtime。")
                     else:
-                        self.logger.warning(f"- {_f}")
+                        # self.logger.warning(f"- {_f}")
+                        pass
             else:
                 for _p in path_based_queue:
                     rval = _scanner.scan_path(_p)
@@ -101,7 +102,8 @@ class ScanningPool(object):
                         mtimepath_scanned_marks[mtime_p] = False
                         self.logger.error(f"扫描[{_p}]失败，将不更新目录[{mtime_p}]的mtime!")
                     else:
-                        self.logger.warning(f"- {_p}")
+                        # self.logger.warning(f"- {_p}")
+                        pass
         for mtimepath in self.wait_updating_mtimepaths.keys():
             if mtimepath_scanned_marks[mtimepath] and not cache_isfile.get(
                 mtimepath, False
@@ -157,14 +159,16 @@ class ScanningPool4DeletedPaths(ScanningPool):
                     if not rval:
                         self.logger.error(f"扫描[{_f}]失败。")
                     else:
-                        self.logger.warning(f"- {_f}")
+                        # self.logger.warning(f"- {_f}")
+                        pass
             else:
                 for _p in path_based_queue:
                     rval = _scanner.scan_path(_p, deleted=True)
                     if not rval:
                         self.logger.error(f"扫描[{_p}]失败。")
                     else:
-                        self.logger.warning(f"- {_p}")
+                        # self.logger.warning(f"- {_p}")
+                        pass
         self.pool.clear()
 
 
