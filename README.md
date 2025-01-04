@@ -2,13 +2,13 @@
 
 利用[python-clouddrive-client](https://github.com/ChenyangGao/web-mount-packs/tree/main/python-clouddrive-client)提供的clouddrive2 api/webhook来监控目录变化，然后进行plex/emby media server的局部扫描。
 
-**定时遍历预览图**
+<!-- **定时遍历预览图** -->
 
-![监控列表](./img/monitor.png)
+<!-- ![监控列表](./img/monitor.png) -->
 
-**手动更新扫描预览图**
+<!-- **手动更新扫描预览图** -->
 
-![目录浏览](./img/files.png)
+<!-- ![目录浏览](./img/files.png) -->
 
 **基于clouddrive2的webhook实时监控日志**
 
@@ -33,12 +33,12 @@
 **测试环境 1**
 * QNAP x86_64
 * Plex Media Server with docker
-* clouddrive2添加115网盘，挂载到本地目录`/share/SSD1T/03cd2/115`，文件夹缓存期40s。  
+* clouddrive2添加115网盘，挂载到本地目录`/share/SSD1T/03cd2/115`。
 
 **测试环境 2**
 * Unraid 7.0.0-beta.2
 * EmbyServer from app center
-* clouddrive2添加115网盘，挂载到本地目录`/mnt/user/CloudDrive/115`，文件夹缓存期40s。  
+* clouddrive2添加115网盘，挂载到本地目录`/mnt/user/CloudDrive/115`。
 
 
 
@@ -88,6 +88,11 @@ additional_header = "value"
 
 一般而言，只需要修改`base_url`，保存后重启clouddrive2。
 
+**注意：**
+> * 为了让实时文件变更监控有效，请保证clouddrive2版本在V0.8.5及以上，然后在`115生活`手机app中，点击`存储`->`最近`->`最近操作`->右上角垂直的三个点，打开最近记录。
+> * clouddrive2 v0.8.5版本的更新日志（部分摘抄）：因115网盘限制，以下变更不支持跨设备同步：1)离线下载；2)重命名文件(重命名文件夹支持)；3)网盘内拷贝文件(拷贝文件夹支持)；跨设备文件变更需要开启目录缓存本地持久化；跨设备文件变更可能存在遗漏，必要时可能需要在web界面手动刷新目录来实现完全同步
+
+
 **部署容器**  
 
 先拷贝项目中的`template/config.yaml`到`你的compose项目目录/config/config.yaml`，并按需修改（WEBUI的启动端口2024，默认登录用户名admin，密码admin等）。
@@ -127,15 +132,20 @@ services:
 
 每次更改`config.yaml`文件后，需要重启容器。
 
-**定时监控目录的运行逻辑**
-1. 将监控目录的所有子目录的mtime属性存入数据库。
-2. 定时任务每间隔特定时间来遍历监控目录，检查该目录及其子目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描。  
-3. 扫描时，根据配置文件中的`path_mapping`规则，将clouddrive2中的路径映射到plex/emby media server的路径。  
-
 **实时监控目录的运行逻辑**
 1. cd2检测到文件变更后，通过webhook发送post请求，将变更信息传递到本程序。
 2. 当你使用`plex`、`emby`类型的媒体服务器时，本程序根据传递的信息，将相应目录映射后进行局部扫描。
 3. 当你使用`embystrm`类型的媒体服务器时，本程序会根据传入的变更信息，先生成`.strm`文件，然后再局部扫描生成的strm文件。
+
+**定时监控目录的运行逻辑**（将来可能弃用，仅作留档）
+1. 将监控目录的所有子目录的mtime属性存入数据库。
+2. 定时任务每间隔特定时间来遍历监控目录，检查该目录及其子目录的mtime属性是否发生变化，若发生变化，则对该目录下的媒体路径进行扫描。  
+3. 扫描时，根据配置文件中的`path_mapping`规则，将clouddrive2中的路径映射到plex/emby media server的路径。  
+
+**手动触发扫描流程**
+1. 在web ui中打开`目录浏览`，定位到需要扫描的文件（夹）,
+2. 点击`操作`栏的扫描图标，即可后台触发扫描。
+
 
 **embystrm的补充说明**
 假设config.yaml对strm的映射如下：
@@ -171,10 +181,6 @@ location /flower {
 ```
 访问`pps.yourdomain.com`即可访问web ui来添加监控目录, 访问`pps.yourdomain.com/flower/`即可访问flower ui查看后台任务状态。
 
-
-## 局限性
-
-**最近115风控得更加厉害了，建议cd2中115的maxQueriesPerSecond参数调小（如0.9以下）。**
 
 ## TODO
 
