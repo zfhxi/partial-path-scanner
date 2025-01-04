@@ -15,8 +15,8 @@ flask:
         timer_interval: 10 # 无需修改。监控文件变更时，处理变动文件的定时执行间隔（单位秒）。
         allowed_exts: [ '.mkv', '.mp4', '.avi', '.rmvb', '.ts', '.flv', '.jpg', '.jpeg', '.png', '.ass', '.srt' ] # 一般无需修改。用以过滤文件变更通知。
         allowed_path_keywords: [ "/115/Public" ] # 需要修改！用来过滤文件变更通知，此处表示仅接受来自路径/115/Public/xxxx的文件变更通知。
-        sync_other_device_enabled: true # 将文件变更请求同步到其他设备
-        sync_other_device_url: 'http://ip:port/file_notify' # 将文件变更请求同步到其他设备
+        sync_other_device_enabled: false # 将文件变更请求同步到其他设备
+        sync_other_device_url: 'http://ip:port/file_notify'
 databases:
     # 程序所需要的数据库配置,如果你不懂参数的含义，请不要修改
     redis:
