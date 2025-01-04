@@ -18,7 +18,7 @@ def str2bool(v):
         return v
     elif str(v).lower() in ["true", "1"]:
         return True
-    elif str(v).lower() in ["false", "0", ""]:
+    elif str(v).lower() in ["false", "0", ""] or (bool(v) is False):
         return False
     else:
         raise ValueError("Boolean value expected.")

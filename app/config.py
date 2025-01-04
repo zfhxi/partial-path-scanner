@@ -92,6 +92,12 @@ class BaseConfig(object):
             self._config, 'flask', 'filechangehandler', 'allowed_path_keywords'
         )
         self.FC_HANDLER_TIMER_INTERVAL = read_deepvalue(self._config, 'flask', 'filechangehandler', 'timer_interval')
+        self.FC_HANDLER_SYNC_OTHER_DEVICE_ENABLED = str2bool(
+            read_deepvalue(self._config, 'flask', 'filechangehandler', 'sync_other_device_enabled')
+        )
+        self.FC_HANDLER_SYNC_OTHER_DEVICE_URL = read_deepvalue(
+            self._config, 'flask', 'filechangehandler', 'sync_other_device_url'
+        )
 
 
 class DevConfig(BaseConfig):

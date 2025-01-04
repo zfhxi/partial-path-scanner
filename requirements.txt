@@ -17,3 +17,4 @@ Celery==5.4.0
 supervisor==4.2.5
 flask-cors==5.0.0
 flower==2.0.1
+urllib3==2.2.2

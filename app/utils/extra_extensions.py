@@ -4,6 +4,8 @@ from alist import AlistClient, AlistFileSystem
 from threading import Timer
 import time
 import os
+import json
+import urllib3
 
 
 class FlaskStorageClientWrapper(object):
@@ -117,6 +119,11 @@ class FlaskFileChangeHandlerWrapper(object):
         # 配置可处理的文件后缀和关键词
         self.allowed_extensions = app.config['FC_HANDLER_ALLOWED_EXTS']
         self.allowed_keywords = app.config['FC_HANDLER_ALLOWED_PATH_KEYWORDS']
+        self.sync_other_device_enabled = app.config['FC_HANDLER_SYNC_OTHER_DEVICE_ENABLED']
+        if self.sync_other_device_enabled:
+            self.sync_other_device_url = app.config['FC_HANDLER_SYNC_OTHER_DEVICE_URL']
+            self.sync_other_device_headers = {"Content-Type": "application/json; charset=UTF-8"}
+            self.http = urllib3.PoolManager()
 
     def reset_dest_timer(self, _func):
         if self.dest_timer:
@@ -177,6 +184,21 @@ class FlaskFileChangeHandlerWrapper(object):
         if ext == '' or ext not in self.allowed_extensions:  # 是文件夹
             return True
         return ext.lower() in self.allowed_extensions
+
+    def sync_filechange_to_other_device(self, upstream_url, payload):
+        if self.sync_other_device_enabled:
+            try:
+                self.http.request(
+                    'POST',
+                    self.sync_other_device_url,
+                    body=json.dumps(payload).encode('utf-8'),
+                    headers=self.sync_other_device_headers,
+                )
+                return f"已同步请求到其他设备：{self.sync_other_device_url}！"
+            except Exception as e:
+                return f"同步请求到其他设备失败，url: {self.sync_other_device_url}！ Error: {e}"
+        else:
+            return None
 
     @staticmethod
     def translate_action(action, source_file, destination_file):

@@ -3,6 +3,7 @@ from flask_login import login_required
 from celery.result import AsyncResult
 from app.extensions import fc_handler, storage_client, redis_db
 from app.utils import getLogger, manual_scan_dest_pathlist, manual_scan_deleted_pathlist
+from app.tasks import async_filechange_to_other_device
 import functools
 import os
 
@@ -113,5 +114,9 @@ def file_noify():
     if len(notifications) > 0:
         logger.warning(f"收到文件变更通知： {notifications}")
 
+    # 发送文件变更通知到其他设备
+    if fc_handler.sync_other_device_enabled:
+        # fc_handler.sync_filechange_to_other_device(request.url, data)
+        async_filechange_to_other_device.apply_async(args=[request.url, data])
     # 响应
     return jsonify({"状态": "成功", "消息": "已接收文件系统通知"}), 200

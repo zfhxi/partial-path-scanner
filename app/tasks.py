@@ -1,6 +1,6 @@
 from celery import shared_task
 from app.utils import getLogger, folder_scan, manual_scan
-from app.extensions import redis_db, storage_client
+from app.extensions import redis_db, storage_client, fc_handler
 
 
 logger = getLogger(__name__)
@@ -42,3 +42,10 @@ def manual_scan_bg(self, folder, servers_cfg):
         logger.info(f"手动扫描路径[{folder}]完成!")
     else:
         raise Exception(f"手动扫描路径[{folder}]失败! 错误信息: {message}")
+
+
+@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 5})
+def async_filechange_to_other_device(self, upstream_url, payload):
+    rmsg = fc_handler.sync_filechange_to_other_device(upstream_url, payload)
+    if rmsg:
+        logger.warning(rmsg)
