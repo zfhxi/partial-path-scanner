@@ -13,7 +13,7 @@ flask:
         default_interval: 1d # 默认执行间隔，单位m/h/d，分别对应分钟/小时/天，更多请参考https://github.com/wroberts/pytimeparse 程序暂未调用此参数
     filechangehandler:
         timer_interval: 10 # 无需修改。监控文件变更时，处理变动文件的定时执行间隔（单位秒）。
-        allowed_exts: [ '.mkv', '.mp4', '.avi', '.rmvb', '.ts', '.flv', '.jpg', '.jpeg', '.png', '.ass', '.srt' ] # 一般无需修改。用以过滤文件变更通知。
+        allowed_exts: [ '.mkv', '.mp4', '.avi', '.rmvb', '.ts', '.flv', '.jpg', '.jpeg', '.png', '.ass', '.srt', 'ssa', 'sup' ] # 一般无需修改。用以过滤文件变更通知。
         allowed_path_keywords: [ "/115/Public" ] # 需要修改！用来过滤文件变更通知，此处表示仅接受来自路径/115/Public/xxxx的文件变更通知。
         sync_other_device_enabled: false # 将文件变更请求同步到其他设备
         sync_other_device_url: 'http://ip:port/file_notify'
@@ -78,7 +78,7 @@ media_servers:
                 mount: /mnt/user/CloudDrive/115 # 网盘115通过cd2挂载到本地的根路径
             # video_exts和metadata_exts一般无需修改
             video_exts: [ '.mkv', '.mp4', '.avi', '.rmvb', '.ts', '.flv' ]
-            metadata_exts: [ '.nfo', '.jpg', '.jpeg', '.png', '.ass', '.srt' ]
+            metadata_exts: [ '.nfo', '.jpg', '.jpeg', '.png', '.ass', '.srt', 'ssa', 'sup' ]
             # 以下的参数，按需修改
             max_workers: 4 # 生成strm所使用的线程数，不建议改太大，否则可能同时产生大量下载
             enable_copy_metadata: true # 允许复制网盘的元数据文件到STRM目录。会减慢生成strm的速度。
