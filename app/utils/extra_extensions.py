@@ -6,6 +6,9 @@ import time
 import os
 import json
 import urllib3
+from .logger import getLogger
+
+logger = getLogger(__name__)
 
 
 class FlaskStorageClientWrapper(object):
@@ -23,6 +26,7 @@ class FlaskStorageClientWrapper(object):
             self.fs = AlistFileSystem(self.client)
         else:
             raise NotImplementedError(f"The function connect_fs not implemented for provider {self.provider}")
+        logger.info(f"已连接到{self.provider}[{self.host}]！")
 
     def init_app(self, app):
         self.provider = app.config['STORAGE_PROVIDER']
@@ -35,7 +39,14 @@ class FlaskStorageClientWrapper(object):
         app.extensions['storage_client'] = self
 
     def attr(self, *args, **kwargs):
-        return self.fs.attr(*args, **kwargs)
+        try:
+            return self.fs.attr(*args, **kwargs)
+        except OSError as e:
+            if "Failed to connect to remote host" in str(e):
+                self.connect_fs()
+                return self.fs.attr(*args, **kwargs)
+            else:
+                raise OSError(e)
 
     def is_dir(self, *args, **kwargs):
         if self.provider == 'clouddrive2':
@@ -49,13 +60,34 @@ class FlaskStorageClientWrapper(object):
         return str(self.attr(*args, **kwargs)['mtime'])
 
     def walk_attr(self, *args, **kwargs):
-        return self.fs.walk_attr(*args, **kwargs)
+        try:
+            return self.fs.walk_attr(*args, **kwargs)
+        except OSError as e:
+            if "Failed to connect to remote host" in str(e):
+                self.connect_fs()
+                return self.fs.walk_attr(*args, **kwargs)
+            else:
+                raise OSError(e)
 
     def listdir_attr(self, *args, **kwargs):
-        return self.fs.listdir_attr(*args, **kwargs)
+        try:
+            return self.fs.listdir_attr(*args, **kwargs)
+        except OSError as e:
+            if "Failed to connect to remote host" in str(e):
+                self.connect_fs()
+                return self.fs.listdir_attr(*args, **kwargs)
+            else:
+                raise OSError(e)
 
     def exists(self, *args, **kwargs):
-        return self.fs.exists(*args, **kwargs)
+        try:
+            return self.fs.exists(*args, **kwargs)
+        except OSError as e:
+            if "Failed to connect to remote host" in str(e):
+                self.connect_fs()
+                return self.fs.exists(*args, **kwargs)
+            else:
+                raise OSError(e)
 
 
 class FlaskCeleryWrapper(object):
