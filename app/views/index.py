@@ -1,7 +1,7 @@
 from flask import render_template, Blueprint, jsonify, current_app, request
 from flask_login import login_required
 from celery.result import AsyncResult
-from app.extensions import fc_handler, storage_client, redis_db
+from app.extensions import fc_handler, storage_client, redis_db, limiter
 from app.utils import getLogger, manual_scan_dest_pathlist, manual_scan_deleted_pathlist
 from app.tasks import async_filechange_to_other_device
 import functools
@@ -64,6 +64,7 @@ def add_change2fc_handler(action_cn, src_file, dest_file, src_func, dest_func):
 
 
 @index_bp.route('/file_notify', methods=['POST'])
+@limiter.limit("1/second")
 def file_noify():
     """
     接收文件系统监听器的 webhook POST 请求

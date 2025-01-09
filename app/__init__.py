@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from flask_cors import CORS
 from app.models import LoginUser
-from app.extensions import redis_db, sqlite_db, login_manager, bcrypt, scheduler, storage_client, fc_handler
+from app.extensions import redis_db, sqlite_db, login_manager, bcrypt, scheduler, storage_client, fc_handler, limiter
 from app.views import auth_bp, monitor_bp, files_bp, index_bp, logs_bp
 from app.database import User, MonitoredFolder
 from app.utils import folder_scan, create_folder_scheduler, getLogger, setLogger
@@ -76,6 +76,8 @@ def register_extensions(app):
     # celery_wrapper.init_app(app)
     # 注册文件变更处理器
     fc_handler.init_app(app)
+    # 注册请求频率限制
+    limiter.init_app(app)
 
 
 # 所有蓝图注册

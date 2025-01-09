@@ -13,6 +13,7 @@ Flask-Login==0.6.3
 Flask-Bcrypt==1.0.1
 Flask-APScheduler==1.13.1
 flask-sqlalchemy==3.1.1
+Flask-Limiter==3.10.0
 Celery==5.4.0
 supervisor==4.2.5
 flask-cors==5.0.0
